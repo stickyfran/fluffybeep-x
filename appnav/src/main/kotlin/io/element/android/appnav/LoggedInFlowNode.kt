@@ -631,7 +631,7 @@ class LoggedInFlowNode(
         clearBackstack: Boolean = false,
     ): RoomFlowNode {
         waitForNavTargetAttached { navTarget ->
-            navTarget is NavTarget.Home
+            navTarget is NavTarget.Home || navTarget is NavTarget.Room
         }
         attachChild<RoomFlowNode> {
             val roomNavTarget = NavTarget.Room(

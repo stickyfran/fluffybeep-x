@@ -28,6 +28,7 @@ import im.vector.app.features.analytics.plan.Interaction
 import io.element.android.features.announcement.api.Announcement
 import io.element.android.features.announcement.api.AnnouncementService
 import io.element.android.features.home.impl.datasource.RoomListDataSource
+import io.element.android.features.home.impl.model.RoomListRoomSummary
 import io.element.android.features.home.impl.filters.RoomListFiltersState
 import io.element.android.features.home.impl.filters.into
 import io.element.android.features.home.impl.search.GlobalSearchState
@@ -49,6 +50,7 @@ import io.element.android.libraries.featureflag.api.FeatureFlagService
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
 import io.element.android.libraries.matrix.api.MatrixClient
+import io.element.android.libraries.matrix.api.contactmerge.MergedContact
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.encryption.RecoveryState
 import io.element.android.libraries.matrix.api.roomlist.RoomList
@@ -234,6 +236,7 @@ class RoomListPresenter(
         val roomSummaries by produceState(initialValue = AsyncData.Loading()) {
             roomListDataSource.roomSummariesFlow.collect { value = AsyncData.Success(it) }
         }
+        val mergedContacts by client.contactMergeService.mergedContacts.collectAsState(initial = emptyList())
         val loadingState by roomListDataSource.loadingState.collectAsState()
         val showEmpty by remember {
             derivedStateOf {
@@ -247,6 +250,50 @@ class RoomListPresenter(
         }
         val seenRoomInvites by remember { seenInvitesStore.seenRoomIds() }.collectAsState(emptySet())
         val securityBannerState by rememberSecurityBannerState(securityBannerDismissed)
+        val processedSummaries = remember(roomSummaries, mergedContacts) {
+            val raw = roomSummaries.dataOrNull().orEmpty()
+            if (mergedContacts.isEmpty()) {
+                raw.toImmutableList()
+            } else {
+                val roomIdToMerge = HashMap<RoomId, MergedContact>()
+                for (mc in mergedContacts) {
+                    for (rId in mc.roomIds) {
+                        roomIdToMerge[rId] = mc
+                    }
+                }
+                val handledMergeIds = HashSet<String>()
+                val result = ArrayList<RoomListRoomSummary>(raw.size)
+
+                for (summary in raw) {
+                    val mc = roomIdToMerge[summary.roomId]
+                    if (mc == null) {
+                        result.add(summary)
+                    } else {
+                        if (handledMergeIds.add(mc.id)) {
+                            val siblings = raw.filter { it.roomId in mc.roomIds }
+                            val primary = siblings.firstOrNull { it.roomId == mc.activeRoomId } ?: summary
+                            val totalUnreadMessages = siblings.sumOf { it.numberOfUnreadMessages }
+                            val totalUnreadNotifications = siblings.sumOf { it.numberOfUnreadNotifications }
+                            val totalUnreadMentions = siblings.sumOf { it.numberOfUnreadMentions }
+                            val isAnyMarkedUnread = siblings.any { it.isMarkedUnread }
+                            val allBadges = siblings.flatMap { it.networkBadges }.distinct().toImmutableList()
+
+                            result.add(
+                                primary.copy(
+                                    name = mc.displayName.ifBlank { primary.name },
+                                    numberOfUnreadMessages = totalUnreadMessages,
+                                    numberOfUnreadNotifications = totalUnreadNotifications,
+                                    numberOfUnreadMentions = totalUnreadMentions,
+                                    isMarkedUnread = isAnyMarkedUnread,
+                                    networkBadges = if (allBadges.isNotEmpty()) allBadges else primary.networkBadges,
+                                )
+                            )
+                        }
+                    }
+                }
+                result.toImmutableList()
+            }
+        }
         return when {
             showEmpty -> RoomListContentState.Empty(
                 securityBannerState = securityBannerState,
@@ -261,7 +308,7 @@ class RoomListPresenter(
                     showUnreadCount = showUnreadCount,
                     fullScreenIntentPermissionsState = fullScreenIntentPermissionsPresenter.present(),
                     batteryOptimizationState = batteryOptimizationPresenter.present(),
-                    summaries = roomSummaries.dataOrNull().orEmpty().toImmutableList(),
+                    summaries = processedSummaries,
                     seenRoomInvites = seenRoomInvites.toImmutableSet(),
                 )
             }

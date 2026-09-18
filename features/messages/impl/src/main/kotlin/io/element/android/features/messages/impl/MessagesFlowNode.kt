@@ -295,8 +295,8 @@ class MessagesFlowNode(
                         callback.navigateToRoomMemberDetails(userId)
                     }
 
-                    override fun handlePermalinkClick(data: PermalinkData) {
-                        callback.handlePermalinkClick(data, pushToBackstack = true)
+                    override fun handlePermalinkClick(data: PermalinkData, pushToBackstack: Boolean) {
+                        callback.handlePermalinkClick(data, pushToBackstack = pushToBackstack)
                     }
 
                     override fun navigateToEventDebugInfo(eventId: EventId?, debugInfo: TimelineItemDebugInfo) {

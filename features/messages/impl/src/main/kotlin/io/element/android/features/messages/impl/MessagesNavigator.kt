@@ -27,5 +27,6 @@ interface MessagesNavigator {
     fun navigateToThread(threadRootId: ThreadId, focusedEventId: EventId?)
     fun navigateToDeveloperSettings()
     fun navigateToCurrentLiveLocation()
+    fun switchRoom(roomId: RoomId)
     fun close()
 }

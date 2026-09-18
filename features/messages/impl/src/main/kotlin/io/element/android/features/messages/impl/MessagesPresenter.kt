@@ -94,6 +94,7 @@ import io.element.android.libraries.matrix.ui.model.dmUserStatus
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.room.getDirectRoomMember
 import io.element.android.libraries.textcomposer.model.MessageComposerMode
+import io.element.android.libraries.textcomposer.model.TextEditorState
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.collections.immutable.persistentListOf
@@ -342,10 +343,16 @@ class MessagesPresenter(
                 }
                 is MessagesEvent.SwitchMergedRoom -> {
                     coroutineScope.launch {
+                        composerState.eventSink(MessageComposerEvent.SaveDraft)
                         mergedContact?.let {
                             contactMergeService.setActiveRoom(it.id, event.roomId)
+                            val currentText = when (val editor = composerState.textEditorState) {
+                                is TextEditorState.Markdown -> editor.state.text.value()?.toString()
+                                is TextEditorState.Rich -> editor.richTextEditorState.messageMarkdown
+                            }
+                            contactMergeService.setDraft(it.id, currentText)
                         }
-                        navigator.navigateToRoom(event.roomId, null, emptyList())
+                        navigator.switchRoom(event.roomId)
                     }
                 }
             }

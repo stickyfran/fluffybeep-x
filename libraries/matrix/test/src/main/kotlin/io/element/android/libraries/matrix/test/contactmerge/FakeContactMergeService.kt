@@ -78,4 +78,16 @@ class FakeContactMergeService(
         _mergedContacts.value = _mergedContacts.value.map { if (it.id == mergeId) updated else it }
         return Result.success(Unit)
     }
+
+    private val drafts = mutableMapOf<String, String>()
+
+    override fun getDraft(mergeId: String): String? = drafts[mergeId]
+
+    override fun setDraft(mergeId: String, text: String?) {
+        if (text.isNullOrBlank()) {
+            drafts.remove(mergeId)
+        } else {
+            drafts[mergeId] = text
+        }
+    }
 }

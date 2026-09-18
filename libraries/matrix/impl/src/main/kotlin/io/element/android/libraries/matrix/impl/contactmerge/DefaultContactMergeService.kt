@@ -28,8 +28,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import timber.log.Timber
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 private const val ACCOUNT_DATA_MERGES_TYPE = "m.fluffybeep.merges"
+private const val ACCOUNT_DATA_BEEPER_MERGES = "com.beeper.merged_contacts"
 
 @Serializable
 private data class MergesContainer(
@@ -53,6 +55,19 @@ private data class MergedContactDto(
     )
 }
 
+@Serializable
+private data class BeeperMergedContactDto(
+    val displayName: String? = null,
+    val avatarMxc: String? = null,
+    val roomIds: List<String> = emptyList(),
+    val createdAt: Long? = null,
+)
+
+@Serializable
+private data class BeeperMergesContainer(
+    val contacts: Map<String, BeeperMergedContactDto> = emptyMap(),
+)
+
 private fun MergedContact.toDto(): MergedContactDto = MergedContactDto(
     id = id,
     displayName = displayName,
@@ -73,6 +88,7 @@ class DefaultContactMergeService(
 
     private val _mergedContacts = MutableStateFlow<List<MergedContact>>(emptyList())
     override val mergedContacts: StateFlow<List<MergedContact>> = _mergedContacts.asStateFlow()
+    private val drafts = ConcurrentHashMap<String, String>()
 
     init {
         sessionCoroutineScope.launch(dispatchers.io) {
@@ -81,25 +97,83 @@ class DefaultContactMergeService(
     }
 
     private suspend fun loadMerges() = withContext(dispatchers.io) {
+        val loaded = mutableListOf<MergedContact>()
+
+        // 1. Try loading from com.beeper.merged_contacts (FluffyBeep format)
+        val beeperJson = matrixClient.getAccountData(ACCOUNT_DATA_BEEPER_MERGES).getOrNull()
+        if (!beeperJson.isNullOrBlank()) {
+            try {
+                val beeperContainer = jsonProvider().decodeFromString<BeeperMergesContainer>(beeperJson)
+                beeperContainer.contacts.forEach { (id, dto) ->
+                    if (dto.roomIds.size >= 2) {
+                        loaded.add(
+                            MergedContact(
+                                id = id,
+                                displayName = dto.displayName ?: "Contacto fusionado",
+                                roomIds = dto.roomIds.map(::RoomId),
+                                activeRoomId = RoomId(dto.roomIds.first()),
+                                customAvatarUrl = dto.avatarMxc,
+                            )
+                        )
+                    }
+                }
+                Timber.i("Loaded ${loaded.size} merged contacts from $ACCOUNT_DATA_BEEPER_MERGES")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to parse $ACCOUNT_DATA_BEEPER_MERGES")
+            }
+        }
+
+        // 2. Try loading from m.fluffybeep.merges
         val rawJson = matrixClient.getAccountData(ACCOUNT_DATA_MERGES_TYPE).getOrNull()
         if (!rawJson.isNullOrBlank()) {
             try {
                 val container = jsonProvider().decodeFromString<MergesContainer>(rawJson)
-                _mergedContacts.value = container.merges.map { it.toModel() }
-                Timber.i("Loaded ${_mergedContacts.value.size} merged contacts from account_data")
+                val fluffyList = container.merges.map { it.toModel() }
+                for (contact in fluffyList) {
+                    if (loaded.none { it.id == contact.id }) {
+                        loaded.add(contact)
+                    }
+                }
+                Timber.i("Loaded ${loaded.size} total merged contacts after checking $ACCOUNT_DATA_MERGES_TYPE")
             } catch (e: Exception) {
-                Timber.e(e, "Failed to parse merged contacts from account_data")
+                Timber.e(e, "Failed to parse $ACCOUNT_DATA_MERGES_TYPE")
             }
         }
+
+        _mergedContacts.value = loaded
     }
 
     private suspend fun saveMerges(contacts: List<MergedContact>): Result<Unit> = withContext(dispatchers.io) {
         runCatching {
+            // Save to m.fluffybeep.merges
             val container = MergesContainer(merges = contacts.map { it.toDto() })
             val jsonString = jsonProvider().encodeToString(container)
-            matrixClient.setAccountData(ACCOUNT_DATA_MERGES_TYPE, jsonString).getOrThrow()
+            matrixClient.setAccountData(ACCOUNT_DATA_MERGES_TYPE, jsonString)
+
+            // Also save to com.beeper.merged_contacts for full FluffyBeep compatibility
+            val beeperContacts = contacts.associate { mc ->
+                mc.id to BeeperMergedContactDto(
+                    displayName = mc.displayName,
+                    avatarMxc = mc.customAvatarUrl,
+                    roomIds = mc.roomIds.map { it.value },
+                    createdAt = System.currentTimeMillis() / 1000,
+                )
+            }
+            val beeperJson = jsonProvider().encodeToString(BeeperMergesContainer(beeperContacts))
+            matrixClient.setAccountData(ACCOUNT_DATA_BEEPER_MERGES, beeperJson).getOrThrow()
+
             _mergedContacts.value = contacts
-            Timber.i("Saved ${contacts.size} merged contacts to account_data")
+            Timber.i("Saved ${contacts.size} merged contacts to account_data (both keys)")
+        }
+    }
+
+    override fun getDraft(mergeId: String): String? = drafts[mergeId]
+
+    override fun setDraft(mergeId: String, text: String?) {
+        if (text.isNullOrBlank()) {
+            drafts.remove(mergeId)
+        } else {
+            drafts[mergeId] = text
         }
     }
 

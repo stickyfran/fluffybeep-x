@@ -39,4 +39,10 @@ interface ContactMergeService {
 
     /** Sets the primary/active room to open when this contact is selected. */
     suspend fun setActiveRoom(mergeId: String, roomId: RoomId): Result<Unit>
+
+    /** Gets saved text draft for a merged contact. */
+    fun getDraft(mergeId: String): String?
+
+    /** Sets or clears saved text draft for a merged contact. */
+    fun setDraft(mergeId: String, text: String?)
 }

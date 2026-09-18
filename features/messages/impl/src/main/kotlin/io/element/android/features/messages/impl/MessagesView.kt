@@ -129,6 +129,7 @@ import io.element.android.libraries.designsystem.utils.scaffoldScrollableContent
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarHost
 import io.element.android.libraries.designsystem.utils.snackbar.rememberSnackbarHostState
 import io.element.android.libraries.matrix.api.contactmerge.MergedRoomSummary
+import io.element.android.libraries.matrix.api.contactmerge.getNetworkColor
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.UserId
@@ -706,13 +707,7 @@ private fun MergedRoomsSwitcher(
     ) {
         items(siblingRooms.size) { index ->
             val sibling = siblingRooms[index]
-            val networkColor = when (sibling.network) {
-                "WhatsApp" -> Color(0xFF25D366)
-                "Instagram" -> Color(0xFFE4405F)
-                "Telegram" -> Color(0xFF2AABEE)
-                "Signal" -> Color(0xFF3A76F0)
-                else -> Color(0xFF0DBD8B)
-            }
+            val networkColor = getNetworkColor(sibling.network)
             val backgroundColor = if (sibling.isActive) {
                 ElementTheme.colors.bgSubtlePrimary
             } else {

@@ -17,6 +17,7 @@ import io.element.android.libraries.dateformatter.api.DateFormatter
 import io.element.android.libraries.dateformatter.api.DateFormatterMode
 import io.element.android.libraries.designsystem.components.avatar.AvatarSize
 import io.element.android.libraries.eventformatter.api.RoomLatestEventFormatter
+import io.element.android.libraries.matrix.api.contactmerge.detectNetwork
 import io.element.android.libraries.matrix.api.room.CallIntentConsensus
 import io.element.android.libraries.matrix.api.room.CurrentUserMembership
 import io.element.android.libraries.matrix.api.room.RoomInfo
@@ -25,6 +26,7 @@ import io.element.android.libraries.matrix.api.roomlist.RoomSummary
 import io.element.android.libraries.matrix.ui.model.dmUserStatus
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.model.toInviteSender
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 @Inject
@@ -35,6 +37,17 @@ class RoomListRoomSummaryFactory(
     fun create(roomSummary: RoomSummary): RoomListRoomSummary {
         val roomInfo = roomSummary.info
         val avatarData = roomInfo.getAvatarData(size = AvatarSize.RoomListItem)
+        val detectedNetwork = detectNetwork(
+            roomId = roomSummary.roomId,
+            roomName = roomInfo.name,
+            alias = roomInfo.canonicalAlias?.value,
+            heroIds = roomInfo.heroes.map { it.userId.value },
+        )
+        val networkBadges = if (detectedNetwork != "Matrix") {
+            persistentListOf(detectedNetwork)
+        } else {
+            persistentListOf()
+        }
         return RoomListRoomSummary(
             id = roomSummary.roomId.value,
             roomId = roomSummary.roomId,
@@ -79,6 +92,7 @@ class RoomListRoomSummaryFactory(
             isTombstoned = roomInfo.successorRoom != null,
             isSpace = roomInfo.isSpace,
             dmUserStatus = roomInfo.dmUserStatus(),
+            networkBadges = networkBadges,
         )
     }
 

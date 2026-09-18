@@ -98,6 +98,43 @@ class DefaultContactMergeServiceTest {
         assertThat(service.getMergedContactForRoom(room1)).isNull()
     }
 
+    @Test
+    fun `loadMerges - loads from Beeper format com_beeper_merged_contacts`() = runTest {
+        val matrixClient = FakeMatrixClient()
+        val beeperJson = """
+            {
+                "contacts": {
+                    "beeper_1": {
+                        "displayName": "Franco Beeper",
+                        "roomIds": ["!room1:server.org", "!room2:server.org"],
+                        "createdAt": 1710000000
+                    }
+                }
+            }
+        """.trimIndent()
+        matrixClient.setAccountData("com.beeper.merged_contacts", beeperJson)
+
+        val service = createService(matrixClient, this)
+        testScheduler.advanceUntilIdle()
+
+        val loaded = service.getMergedContactForRoom(room1)
+        assertThat(loaded).isNotNull()
+        assertThat(loaded?.displayName).isEqualTo("Franco Beeper")
+        assertThat(loaded?.roomIds).containsExactly(room1, room2)
+    }
+
+    @Test
+    fun `drafts - setDraft and getDraft work properly`() = runTest {
+        val matrixClient = FakeMatrixClient()
+        val service = createService(matrixClient, this)
+
+        service.setDraft("merge_1", "Hola Franco")
+        assertThat(service.getDraft("merge_1")).isEqualTo("Hola Franco")
+
+        service.setDraft("merge_1", null)
+        assertThat(service.getDraft("merge_1")).isNull()
+    }
+
     private fun createService(
         matrixClient: FakeMatrixClient,
         testScope: TestScope,

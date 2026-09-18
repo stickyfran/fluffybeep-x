@@ -1491,9 +1491,9 @@ class MessagesPresenterTest {
         val matrixClient = FakeMatrixClient(
             contactMergeService = contactMergeService,
         )
-        val navigateToRoomRecorder = lambdaRecorder<RoomId, EventId?, List<String>, Unit> { _, _, _ -> }
+        val switchRoomRecorder = lambdaRecorder<RoomId, Unit> { _ -> }
         val navigator = FakeMessagesNavigator(
-            onNavigateToRoomLambda = navigateToRoomRecorder,
+            onSwitchRoomLambda = switchRoomRecorder,
         )
         val presenter = createMessagesPresenter(
             matrixClient = matrixClient,
@@ -1504,7 +1504,7 @@ class MessagesPresenterTest {
             assertThat(state.siblingRooms).isNotEmpty()
             state.eventSink(MessagesEvent.SwitchMergedRoom(siblingRoomId))
             runCurrent()
-            navigateToRoomRecorder.assertions().isCalledOnce()
+            switchRoomRecorder.assertions().isCalledOnce()
             assertThat(contactMergeService.getMergedContactForRoom(A_ROOM_ID)?.activeRoomId).isEqualTo(siblingRoomId)
             cancelAndIgnoreRemainingEvents()
         }

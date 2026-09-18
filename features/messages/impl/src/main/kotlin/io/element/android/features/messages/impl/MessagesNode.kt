@@ -135,7 +135,7 @@ class MessagesNode(
         fun handleGalleryItemClick(timelineMode: Timeline.Mode, event: TimelineItem.Event, galleryItemIndex: Int, canUseOverlay: Boolean): Boolean
         fun navigateToPreviewAttachments(attachments: ImmutableList<Attachment>, inReplyToEventId: EventId?)
         fun navigateToRoomMemberDetails(userId: UserId)
-        fun handlePermalinkClick(data: PermalinkData)
+        fun handlePermalinkClick(data: PermalinkData, pushToBackstack: Boolean = true)
         fun navigateToEventDebugInfo(eventId: EventId?, debugInfo: TimelineItemDebugInfo)
         fun forwardEvent(eventId: EventId)
         fun navigateToReportMessage(eventId: EventId, senderId: UserId)
@@ -242,6 +242,15 @@ class MessagesNode(
         } else {
             val permalinkData = PermalinkData.RoomLink(roomId.toRoomIdOrAlias(), eventId, viaParameters = serverNames.toImmutableList())
             callback.handlePermalinkClick(permalinkData)
+        }
+    }
+
+    override fun switchRoom(roomId: RoomId) {
+        if (roomId == room.roomId) {
+            displaySameRoomToast()
+        } else {
+            val permalinkData = PermalinkData.RoomLink(roomId.toRoomIdOrAlias(), null)
+            callback.handlePermalinkClick(permalinkData, pushToBackstack = false)
         }
     }
 
