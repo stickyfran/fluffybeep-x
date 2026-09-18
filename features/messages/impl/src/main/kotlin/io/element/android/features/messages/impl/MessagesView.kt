@@ -36,7 +36,8 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -697,16 +698,15 @@ private fun MergedRoomsSwitcher(
     onSelectRoom: (RoomId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyRow(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        items(siblingRooms.size) { index ->
-            val sibling = siblingRooms[index]
+        for (sibling in siblingRooms) {
             val networkColor = getNetworkColor(sibling.network)
             val backgroundColor = if (sibling.isActive) {
                 ElementTheme.colors.bgSubtlePrimary

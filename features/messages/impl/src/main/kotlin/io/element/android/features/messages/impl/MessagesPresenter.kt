@@ -203,19 +203,28 @@ class MessagesPresenter(
             mergedContacts.firstOrNull { mc -> mc.roomIds.contains(room.roomId) }
         }
         val allRooms by client.roomListService.allRooms.summaries.collectAsState(initial = emptyList())
-        val siblingRooms by remember(mergedContact, allRooms) {
+        val siblingRooms by remember(mergedContact, allRooms, roomInfo) {
             derivedStateOf {
                 if (mergedContact == null) return@derivedStateOf persistentListOf<MergedRoomSummary>()
                 mergedContact.roomIds.map { rId ->
+                    val isCurrent = rId == room.roomId
                     val summary = allRooms.firstOrNull { it.roomId == rId }
-                    val name = summary?.info?.name ?: rId.value
-                    val avatarUrl = summary?.info?.avatarUrl
-                    val network = detectNetwork(rId, name)
+                    val name = if (isCurrent) {
+                        roomInfo.name ?: rId.value
+                    } else {
+                        summary?.info?.name ?: rId.value
+                    }
+                    val avatarUrl = if (isCurrent) roomInfo.avatarUrl else summary?.info?.avatarUrl
+                    val network = if (isCurrent) {
+                        detectNetwork(rId, roomInfo.name, roomInfo.canonicalAlias?.value, heroes.map { it.name.orEmpty() })
+                    } else {
+                        detectNetwork(rId, summary?.info?.name, summary?.info?.canonicalAlias?.value, emptyList())
+                    }
                     MergedRoomSummary(
                         roomId = rId,
                         name = name,
                         avatarUrl = avatarUrl,
-                        isActive = rId == room.roomId,
+                        isActive = isCurrent,
                         network = network,
                     )
                 }.toImmutableList()
