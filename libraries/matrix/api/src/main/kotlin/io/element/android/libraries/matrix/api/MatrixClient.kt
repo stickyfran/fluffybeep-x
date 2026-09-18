@@ -10,6 +10,7 @@ package io.element.android.libraries.matrix.api
 
 import io.element.android.libraries.core.data.tryOrNull
 import io.element.android.libraries.matrix.api.analytics.SdkStoreSizes
+import io.element.android.libraries.matrix.api.contactmerge.ContactMergeService
 import io.element.android.libraries.matrix.api.core.DeviceId
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.MatrixPatterns
@@ -81,6 +82,9 @@ interface MatrixClient : ClientUrlContentFetcher {
 
     /** Gives access to the spaces the user belongs to and their hierarchy. */
     val spaceService: SpaceService
+
+    /** Gives access to merged contacts and unified bridge rooms. */
+    val contactMergeService: ContactMergeService
 
     /** Controls the sync loop of this session and exposes its state. */
     val syncService: SyncService

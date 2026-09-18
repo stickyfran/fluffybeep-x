@@ -16,4 +16,8 @@ sealed interface RoomDetailsEvent {
     data class SetFavorite(val isFavorite: Boolean) : RoomDetailsEvent
     data object MarkAsRead : RoomDetailsEvent
     data object MarkAsUnread : RoomDetailsEvent
+    data class SetActiveMergeRoom(val roomId: io.element.android.libraries.matrix.api.core.RoomId) : RoomDetailsEvent
+    data class UnlinkMergedRoom(val roomId: io.element.android.libraries.matrix.api.core.RoomId) : RoomDetailsEvent
+    data object UnmergeAll : RoomDetailsEvent
+    data class MergeWithRoom(val targetRoomId: io.element.android.libraries.matrix.api.core.RoomId) : RoomDetailsEvent
 }

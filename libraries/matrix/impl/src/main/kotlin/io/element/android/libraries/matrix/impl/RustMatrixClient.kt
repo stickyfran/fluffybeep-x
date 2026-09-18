@@ -47,11 +47,13 @@ import io.element.android.libraries.matrix.api.roomdirectory.RoomVisibility
 import io.element.android.libraries.matrix.api.roomlist.RoomListService
 import io.element.android.libraries.matrix.api.scanner.ContentScanner
 import io.element.android.libraries.matrix.api.spaces.SpaceService
+import io.element.android.libraries.matrix.api.contactmerge.ContactMergeService
 import io.element.android.libraries.matrix.api.sync.SlidingSyncVersion
 import io.element.android.libraries.matrix.api.sync.SyncState
 import io.element.android.libraries.matrix.api.user.MatrixSearchUserResults
 import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.matrix.api.user.UserStatus
+import io.element.android.libraries.matrix.impl.contactmerge.DefaultContactMergeService
 import io.element.android.libraries.matrix.impl.encryption.RustEncryptionService
 import io.element.android.libraries.matrix.impl.exception.mapClientException
 import io.element.android.libraries.matrix.impl.linknewdevice.RustLinkDesktopHandler
@@ -225,6 +227,15 @@ class RustMatrixClient(
         sessionDispatcher = sessionDispatcher,
         analyticsService = analyticsService,
     )
+
+    override val contactMergeService: ContactMergeService by lazy {
+        DefaultContactMergeService(
+            matrixClient = this,
+            dispatchers = dispatchers,
+            jsonProvider = io.element.android.libraries.androidutils.json.DefaultJsonProvider(),
+            sessionCoroutineScope = sessionCoroutineScope,
+        )
+    }
 
     override val ownBeaconInfoUpdates = mxCallbackFlow {
         val listener = object : BeaconInfoListener {

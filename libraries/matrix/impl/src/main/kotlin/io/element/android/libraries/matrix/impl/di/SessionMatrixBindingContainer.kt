@@ -120,4 +120,9 @@ object SessionMatrixBindingContainer {
     fun providesMessageSearchService(matrixClient: MatrixClient): MessageSearchService {
         return matrixClient.messageSearchService
     }
+
+    @Provides
+    fun providesContactMergeService(matrixClient: MatrixClient): io.element.android.libraries.matrix.api.contactmerge.ContactMergeService {
+        return matrixClient.contactMergeService
+    }
 }

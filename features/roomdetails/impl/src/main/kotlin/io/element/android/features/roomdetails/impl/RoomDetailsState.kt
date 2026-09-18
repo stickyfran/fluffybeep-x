@@ -19,7 +19,11 @@ import io.element.android.libraries.matrix.api.room.RoomMember
 import io.element.android.libraries.matrix.api.room.RoomNotificationSettings
 import io.element.android.libraries.matrix.api.room.history.RoomHistoryVisibility
 import io.element.android.libraries.matrix.api.user.MatrixUser
+import io.element.android.libraries.matrix.api.contactmerge.MergedContact
+import io.element.android.libraries.matrix.api.contactmerge.MergedRoomSummary
+import io.element.android.libraries.matrix.ui.model.SelectRoomInfo
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 data class RoomDetailsState(
@@ -53,6 +57,9 @@ data class RoomDetailsState(
     val roomVersion: String?,
     val roomHistoryVisibility: RoomHistoryVisibility,
     val hasNewContent: Boolean,
+    val mergedContact: MergedContact? = null,
+    val siblingRooms: ImmutableList<MergedRoomSummary> = persistentListOf(),
+    val availableRoomsToMerge: ImmutableList<SelectRoomInfo> = persistentListOf(),
     val eventSink: (RoomDetailsEvent) -> Unit
 ) {
     val roomBadges = buildList {

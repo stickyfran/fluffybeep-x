@@ -23,6 +23,7 @@ sealed interface MessagesEvent {
     data object StopLiveLocationShare : MessagesEvent
     data object ShowLiveLocationShare : MessagesEvent
     data object MarkAsFullyReadAndExit : MessagesEvent
+    data class SwitchMergedRoom(val roomId: io.element.android.libraries.matrix.api.core.RoomId) : MessagesEvent
 }
 
 enum class InviteDialogAction {

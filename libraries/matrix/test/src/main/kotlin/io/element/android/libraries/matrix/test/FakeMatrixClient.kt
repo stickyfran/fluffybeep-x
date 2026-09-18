@@ -11,6 +11,8 @@ package io.element.android.libraries.matrix.test
 import io.element.android.libraries.matrix.api.HomeserverCapabilitiesProvider
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.analytics.SdkStoreSizes
+import io.element.android.libraries.matrix.api.contactmerge.ContactMergeService
+import io.element.android.libraries.matrix.test.contactmerge.FakeContactMergeService
 import io.element.android.libraries.matrix.api.core.DeviceId
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomAlias
@@ -86,6 +88,7 @@ class FakeMatrixClient(
     private val userAvatarUrl: String? = AN_AVATAR_URL,
     override val roomListService: RoomListService = FakeRoomListService(),
     override val spaceService: SpaceService = FakeSpaceService(),
+    override val contactMergeService: ContactMergeService = FakeContactMergeService(),
     override val matrixMediaLoader: MatrixMediaLoader = FakeMatrixMediaLoader(),
     override val sessionVerificationService: SessionVerificationService = FakeSessionVerificationService(),
     override val pushersService: PushersService = FakePushersService(),
@@ -125,8 +128,8 @@ class FakeMatrixClient(
     private val getJoinedRoomIdsResult: () -> Result<Set<RoomId>> = { Result.success(emptySet()) },
     private val getRecentEmojisLambda: () -> Result<List<String>> = { Result.success(emptyList()) },
     private val addRecentEmojiLambda: (String) -> Result<Unit> = { Result.success(Unit) },
-    private val getAccountDataLambda: (String) -> Result<String?> = { lambdaError() },
-    private val setAccountDataLambda: (String, String) -> Result<Unit> = { _, _ -> lambdaError() },
+    private val getAccountDataLambda: ((String) -> Result<String?>)? = null,
+    private val setAccountDataLambda: ((String, String) -> Result<Unit>)? = null,
     private val markRoomAsFullyReadResult: (RoomId, EventId) -> Result<Unit> = { _, _ -> lambdaError() },
     private val markAllRoomsAsReadResult: () -> Result<Unit> = { Result.success(Unit) },
     private val performDatabaseVacuumLambda: () -> Result<Unit> = { lambdaError() },
@@ -422,12 +425,17 @@ class FakeMatrixClient(
         return getRecentEmojisLambda()
     }
 
+    private val accountDataMap = mutableMapOf<String, String>()
+
     override suspend fun getAccountData(eventType: String): Result<String?> {
-        return getAccountDataLambda(eventType)
+        return getAccountDataLambda?.invoke(eventType) ?: Result.success(accountDataMap[eventType])
     }
 
     override suspend fun setAccountData(eventType: String, content: String): Result<Unit> {
-        return setAccountDataLambda(eventType, content)
+        return setAccountDataLambda?.invoke(eventType, content) ?: run {
+            accountDataMap[eventType] = content
+            Result.success(Unit)
+        }
     }
 
     override suspend fun markRoomAsFullyRead(roomId: RoomId, eventId: EventId): Result<Unit> {

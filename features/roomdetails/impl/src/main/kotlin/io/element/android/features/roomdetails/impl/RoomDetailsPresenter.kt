@@ -56,6 +56,13 @@ import io.element.android.libraries.push.api.notifications.NotificationCleaner
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import io.element.android.services.analyticsproviders.api.trackers.captureInteraction
+import io.element.android.libraries.matrix.api.core.RoomId
+import io.element.android.libraries.matrix.api.contactmerge.MergedContact
+import io.element.android.libraries.matrix.api.contactmerge.MergedRoomSummary
+import io.element.android.libraries.matrix.api.contactmerge.detectNetwork
+import io.element.android.libraries.matrix.ui.model.toSelectRoomInfo
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
@@ -150,6 +157,40 @@ class RoomDetailsPresenter(
         val snackbarDispatcher = LocalSnackbarDispatcher.current
         val snackbarMessage by snackbarDispatcher.collectSnackbarMessageAsState()
 
+        val contactMergeService = client.contactMergeService
+        val mergedContacts by contactMergeService.mergedContacts.collectAsState(initial = emptyList())
+        val mergedContact: MergedContact? = remember(mergedContacts, room.roomId) {
+            mergedContacts.firstOrNull { mc -> mc.roomIds.contains(room.roomId) }
+        }
+        val allRooms by client.roomListService.allRooms.summaries.collectAsState(initial = emptyList())
+        val siblingRooms by remember(mergedContact, allRooms) {
+            derivedStateOf {
+                if (mergedContact == null) return@derivedStateOf persistentListOf<MergedRoomSummary>()
+                mergedContact.roomIds.map { rId ->
+                    val summary = allRooms.firstOrNull { it.roomId == rId }
+                    val name = summary?.info?.name ?: rId.value
+                    val avatarUrl = summary?.info?.avatarUrl
+                    val network = detectNetwork(rId, name)
+                    MergedRoomSummary(
+                        roomId = rId,
+                        name = name,
+                        avatarUrl = avatarUrl,
+                        isActive = rId == mergedContact.activeRoomId,
+                        network = network,
+                    )
+                }.toImmutableList()
+            }
+        }
+        val availableRoomsToMerge by remember(allRooms, room.roomId, mergedContact) {
+            derivedStateOf {
+                val excludeIds: Set<RoomId> = (mergedContact?.roomIds ?: emptyList()).toSet() + room.roomId
+                allRooms
+                    .filter { it.roomId !in excludeIds }
+                    .map { it.toSelectRoomInfo() }
+                    .toImmutableList()
+            }
+        }
+
         fun handleEvent(event: RoomDetailsEvent) {
             when (event) {
                 is RoomDetailsEvent.LeaveRoom -> {
@@ -172,6 +213,40 @@ class RoomDetailsPresenter(
                 }
                 is RoomDetailsEvent.MarkAsRead -> scope.markAsRead()
                 is RoomDetailsEvent.MarkAsUnread -> scope.markAsUnread()
+                is RoomDetailsEvent.SetActiveMergeRoom -> {
+                    scope.launch(dispatchers.io) {
+                        mergedContact?.let {
+                            contactMergeService.setActiveRoom(it.id, event.roomId)
+                        }
+                    }
+                }
+                is RoomDetailsEvent.UnlinkMergedRoom -> {
+                    scope.launch(dispatchers.io) {
+                        mergedContact?.let {
+                            contactMergeService.removeRoomFromMerge(it.id, event.roomId)
+                        }
+                    }
+                }
+                RoomDetailsEvent.UnmergeAll -> {
+                    scope.launch(dispatchers.io) {
+                        mergedContact?.let {
+                            contactMergeService.unmergeContact(it.id)
+                        }
+                    }
+                }
+                is RoomDetailsEvent.MergeWithRoom -> {
+                    scope.launch(dispatchers.io) {
+                        if (mergedContact != null) {
+                            contactMergeService.addRoomToMerge(mergedContact.id, event.targetRoomId)
+                        } else {
+                            contactMergeService.mergeRooms(
+                                displayName = roomName.ifBlank { "Contacto fusionado" },
+                                roomIds = listOf(room.roomId, event.targetRoomId),
+                                activeRoomId = room.roomId,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -216,6 +291,9 @@ class RoomDetailsPresenter(
             roomVersion = roomInfo.roomVersion,
             roomHistoryVisibility = roomInfo.historyVisibility,
             hasNewContent = hasNewContent,
+            mergedContact = mergedContact,
+            siblingRooms = siblingRooms,
+            availableRoomsToMerge = availableRoomsToMerge,
             eventSink = ::handleEvent,
         )
     }

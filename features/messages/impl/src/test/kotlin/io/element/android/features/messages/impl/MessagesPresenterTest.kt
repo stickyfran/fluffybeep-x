@@ -56,10 +56,13 @@ import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatch
 import io.element.android.libraries.emoji.api.recentemojis.AddRecentEmoji
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
+import io.element.android.libraries.matrix.api.contactmerge.MergedContact
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.ThreadId
 import io.element.android.libraries.matrix.api.core.UserId
+import io.element.android.libraries.matrix.test.FakeMatrixClient
+import io.element.android.libraries.matrix.test.contactmerge.FakeContactMergeService
 import io.element.android.libraries.matrix.api.core.toThreadId
 import io.element.android.libraries.matrix.api.encryption.identity.IdentityState
 import io.element.android.libraries.matrix.api.media.MediaSource
@@ -1473,6 +1476,40 @@ class MessagesPresenterTest {
         }
     }
 
+    @Test
+    fun `present - handle SwitchMergedRoom updates active room and navigates`() = runTest {
+        val siblingRoomId = RoomId("!sibling:domain")
+        val mergedContact = MergedContact(
+            id = "mc_1",
+            displayName = "Contact",
+            roomIds = listOf(A_ROOM_ID, siblingRoomId),
+            activeRoomId = A_ROOM_ID,
+        )
+        val contactMergeService = FakeContactMergeService(
+            initialContacts = listOf(mergedContact),
+        )
+        val matrixClient = FakeMatrixClient(
+            contactMergeService = contactMergeService,
+        )
+        val navigateToRoomRecorder = lambdaRecorder<RoomId, EventId?, List<String>, Unit> { _, _, _ -> }
+        val navigator = FakeMessagesNavigator(
+            onNavigateToRoomLambda = navigateToRoomRecorder,
+        )
+        val presenter = createMessagesPresenter(
+            matrixClient = matrixClient,
+            navigator = navigator,
+        )
+        presenter.testWithLifecycleOwner {
+            val state = consumeItemsUntilPredicate { it.siblingRooms.isNotEmpty() }.last()
+            assertThat(state.siblingRooms).isNotEmpty()
+            state.eventSink(MessagesEvent.SwitchMergedRoom(siblingRoomId))
+            runCurrent()
+            navigateToRoomRecorder.assertions().isCalledOnce()
+            assertThat(contactMergeService.getMergedContactForRoom(A_ROOM_ID)?.activeRoomId).isEqualTo(siblingRoomId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun roomPermissions(
         canStartCall: Boolean = true,
         canRedactOther: Boolean = true,
@@ -1501,6 +1538,7 @@ class MessagesPresenterTest {
 
     private fun TestScope.createMessagesPresenter(
         coroutineDispatchers: CoroutineDispatchers = testCoroutineDispatchers(),
+        matrixClient: FakeMatrixClient = FakeMatrixClient(),
         timeline: Timeline = FakeTimeline(),
         joinedRoom: FakeJoinedRoom = FakeJoinedRoom(
             baseRoom = FakeBaseRoom(
@@ -1540,6 +1578,7 @@ class MessagesPresenterTest {
     ): MessagesPresenter {
         return MessagesPresenter(
             navigator = navigator,
+            client = matrixClient,
             room = joinedRoom,
             composerPresenter = messageComposerPresenter,
             voiceMessageComposerPresenterFactory = FakeDefaultVoiceMessageComposerPresenterFactory(backgroundScope),

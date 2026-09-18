@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -92,6 +94,8 @@ import io.element.android.libraries.matrix.api.room.getBestName
 import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.model.toText
+import io.element.android.libraries.matrix.api.contactmerge.detectNetwork
+import io.element.android.libraries.matrix.ui.model.SelectRoomInfo
 import io.element.android.libraries.testtags.TestTags
 import io.element.android.libraries.testtags.testTag
 import io.element.android.libraries.ui.strings.CommonStrings
@@ -326,6 +330,7 @@ fun RoomDetailsView(
                     )
                 }
             }
+            ContactMergeSection(state = state)
             OtherActionsSection(
                 dmOtherMemberDetailsState = state.dmOtherMemberDetailsState,
                 canReportRoom = state.canReportRoom,
@@ -902,6 +907,257 @@ private fun DebugInfoSection(
         )
     }
 }
+
+@Composable
+private fun ContactMergeSection(
+    state: RoomDetailsState,
+    modifier: Modifier = Modifier,
+) {
+    var showMergeDialog by remember { mutableStateOf(false) }
+
+    PreferenceCategory(
+        modifier = modifier,
+    ) {
+        val mergedContact = state.mergedContact
+        if (mergedContact != null) {
+            state.siblingRooms.forEach { sibling ->
+                ListItem(
+                    content = {
+                        Text(
+                            text = sibling.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    supportingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = sibling.network,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ElementTheme.colors.textSecondary,
+                            )
+                            if (sibling.isActive) {
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "• Activo para enviar",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = ElementTheme.colors.textSuccessPrimary,
+                                )
+                            }
+                        }
+                    },
+                    leadingContent = ListItemContent.Custom {
+                        Avatar(
+                            avatarData = AvatarData(
+                                id = sibling.roomId.value,
+                                name = sibling.name,
+                                url = sibling.avatarUrl,
+                                size = AvatarSize.RoomListItem,
+                            ),
+                            avatarType = AvatarType.Room(),
+                        )
+                    },
+                    trailingContent = ListItemContent.Custom {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!sibling.isActive) {
+                                IconButton(onClick = {
+                                    state.eventSink(RoomDetailsEvent.SetActiveMergeRoom(sibling.roomId))
+                                }) {
+                                    Icon(
+                                        imageVector = CompoundIcons.Check(),
+                                        contentDescription = "Hacer activo",
+                                        tint = ElementTheme.colors.iconSecondary,
+                                    )
+                                }
+                            }
+                            IconButton(onClick = {
+                                state.eventSink(RoomDetailsEvent.UnlinkMergedRoom(sibling.roomId))
+                            }) {
+                                Icon(
+                                    imageVector = CompoundIcons.Delete(),
+                                    contentDescription = "Desvincular",
+                                    tint = ElementTheme.colors.iconCriticalPrimary,
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+            ListItem(
+                content = {
+                    Text(
+                        text = "+ Vincular otra sala",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = ElementTheme.colors.textActionPrimary,
+                    )
+                },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(CompoundIcons.Link())
+                ),
+                onClick = { showMergeDialog = true },
+            )
+            ListItem(
+                content = {
+                    Text(
+                        text = "Desvincular todas las salas",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(CompoundIcons.Delete())
+                ),
+                style = ListItemStyle.Destructive,
+                onClick = { state.eventSink(RoomDetailsEvent.UnmergeAll) },
+            )
+        } else {
+            ListItem(
+                content = {
+                    Text(
+                        text = "Vincular con otra sala",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = "Unificar este chat con WhatsApp, Instagram u otra sala",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ElementTheme.colors.textSecondary,
+                    )
+                },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(CompoundIcons.Link())
+                ),
+                onClick = { showMergeDialog = true },
+            )
+        }
+    }
+
+    if (showMergeDialog) {
+        MergeRoomSelectionDialog(
+            availableRooms = state.availableRoomsToMerge,
+            onRoomSelected = { targetRoomId ->
+                state.eventSink(RoomDetailsEvent.MergeWithRoom(targetRoomId))
+                showMergeDialog = false
+            },
+            onDismiss = { showMergeDialog = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MergeRoomSelectionDialog(
+    availableRooms: ImmutableList<SelectRoomInfo>,
+    onRoomSelected: (RoomId) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredRooms = remember(availableRooms, searchQuery) {
+        if (searchQuery.isBlank()) {
+            availableRooms
+        } else {
+            availableRooms.filter {
+                (it.name ?: "").contains(searchQuery, ignoreCase = true) ||
+                    it.roomId.value.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    androidx.compose.material3.BasicAlertDialog(
+        onDismissRequest = onDismiss,
+    ) {
+        androidx.compose.material3.Surface(
+            shape = MaterialTheme.shapes.large,
+            color = ElementTheme.colors.bgCanvasDefault,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "Vincular con otra sala",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = ElementTheme.colors.textPrimary,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Buscar chat...", color = ElementTheme.colors.textSecondary) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    singleLine = true,
+                )
+                if (filteredRooms.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (availableRooms.isEmpty()) "No hay otras salas disponibles" else "No se encontraron salas",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ElementTheme.colors.textSecondary
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        items(filteredRooms.size) { index ->
+                            val item = filteredRooms[index]
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onRoomSelected(item.roomId) }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Avatar(
+                                    avatarData = item.getAvatarData(AvatarSize.RoomListItem),
+                                    avatarType = AvatarType.Room(),
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.name ?: item.roomId.value,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = detectNetwork(item.roomId, item.name),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = ElementTheme.colors.textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    androidx.compose.material3.TextButton(onClick = onDismiss) {
+                        Text("Cancelar", color = ElementTheme.colors.textActionPrimary)
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @PreviewWithExtraLargeHeight
 @Composable

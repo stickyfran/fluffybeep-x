@@ -11,11 +11,13 @@ package io.element.android.features.messages.impl
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -31,9 +33,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,7 +49,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -120,6 +128,7 @@ import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
 import io.element.android.libraries.designsystem.utils.scaffoldScrollableContentInsets
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarHost
 import io.element.android.libraries.designsystem.utils.snackbar.rememberSnackbarHostState
+import io.element.android.libraries.matrix.api.contactmerge.MergedRoomSummary
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.UserId
@@ -133,6 +142,7 @@ import io.element.android.libraries.matrix.ui.media.contentvalidation.LocalEvent
 import io.element.android.libraries.textcomposer.model.TextEditorState
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.wysiwyg.link.Link
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import timber.log.Timber
 import kotlin.time.Duration.Companion.milliseconds
@@ -628,46 +638,118 @@ private fun MessagesViewComposerBottomSheetContents(
     onLinkClick: (String, Boolean) -> Unit,
 ) {
     val contentPadding = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal).asPaddingValues()
-    when {
-        state.successorRoom != null -> {
-            SuccessorRoomBanner(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(contentPadding),
-                roomSuccessor = state.successorRoom,
-                onRoomSuccessorClick = onRoomSuccessorClick
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(contentPadding)
+    ) {
+        if (state.siblingRooms.size > 1) {
+            MergedRoomsSwitcher(
+                siblingRooms = state.siblingRooms,
+                onSelectRoom = { state.eventSink(MessagesEvent.SwitchMergedRoom(it)) },
             )
         }
-        state.userEventPermissions.canSendMessage -> {
-            Column(
+        when {
+            state.successorRoom != null -> {
+                SuccessorRoomBanner(
+                    modifier = Modifier.fillMaxWidth(),
+                    roomSuccessor = state.successorRoom,
+                    onRoomSuccessorClick = onRoomSuccessorClick
+                )
+            }
+            state.userEventPermissions.canSendMessage -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Do not show the identity change if user is composing a Rich message or is seeing suggestion(s).
+                    if (state.composerState.suggestions.isEmpty() &&
+                        state.composerState.textEditorState is TextEditorState.Markdown) {
+                        IdentityChangeStateView(
+                            state = state.identityChangeState,
+                            onLinkClick = onLinkClick,
+                        )
+                    }
+                    val verificationViolation = state.identityChangeState.roomMemberIdentityStateChanges.firstOrNull {
+                        it.identityState == IdentityState.VerificationViolation
+                    }
+                    if (verificationViolation != null) {
+                        DisabledComposerView(modifier = Modifier.fillMaxWidth())
+                    } else {
+                        MessageComposerView(
+                            state = state.composerState,
+                            voiceMessageState = state.voiceMessageComposerState,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+            else -> {
+                CantSendMessageBanner(Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+@Composable
+private fun MergedRoomsSwitcher(
+    siblingRooms: ImmutableList<MergedRoomSummary>,
+    onSelectRoom: (RoomId) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyRow(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        items(siblingRooms.size) { index ->
+            val sibling = siblingRooms[index]
+            val networkColor = when (sibling.network) {
+                "WhatsApp" -> Color(0xFF25D366)
+                "Instagram" -> Color(0xFFE4405F)
+                "Telegram" -> Color(0xFF2AABEE)
+                "Signal" -> Color(0xFF3A76F0)
+                else -> Color(0xFF0DBD8B)
+            }
+            val backgroundColor = if (sibling.isActive) {
+                ElementTheme.colors.bgSubtlePrimary
+            } else {
+                ElementTheme.colors.bgSubtleSecondary
+            }
+            val borderColor = if (sibling.isActive) {
+                ElementTheme.colors.borderInteractivePrimary
+            } else {
+                Color.Transparent
+            }
+            Surface(
+                shape = CircleShape,
+                color = backgroundColor,
+                border = BorderStroke(1.dp, borderColor),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(contentPadding)
+                    .clip(CircleShape)
+                    .clickable(enabled = !sibling.isActive) {
+                        onSelectRoom(sibling.roomId)
+                    }
             ) {
-                // Do not show the identity change if user is composing a Rich message or is seeing suggestion(s).
-                if (state.composerState.suggestions.isEmpty() &&
-                    state.composerState.textEditorState is TextEditorState.Markdown) {
-                    IdentityChangeStateView(
-                        state = state.identityChangeState,
-                        onLinkClick = onLinkClick,
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(networkColor, CircleShape)
                     )
-                }
-                val verificationViolation = state.identityChangeState.roomMemberIdentityStateChanges.firstOrNull {
-                    it.identityState == IdentityState.VerificationViolation
-                }
-                if (verificationViolation != null) {
-                    DisabledComposerView(modifier = Modifier.fillMaxWidth())
-                } else {
-                    MessageComposerView(
-                        state = state.composerState,
-                        voiceMessageState = state.voiceMessageComposerState,
-                        modifier = Modifier.fillMaxWidth(),
+                    Text(
+                        text = sibling.network.ifBlank { sibling.name },
+                        style = ElementTheme.typography.fontBodySmMedium,
+                        color = if (sibling.isActive) ElementTheme.colors.textPrimary else ElementTheme.colors.textSecondary,
                     )
                 }
             }
-        }
-        else -> {
-            CantSendMessageBanner(Modifier.padding(contentPadding))
         }
     }
 }

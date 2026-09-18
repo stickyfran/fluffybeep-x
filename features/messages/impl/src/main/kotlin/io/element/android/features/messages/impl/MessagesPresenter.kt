@@ -74,6 +74,9 @@ import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.emoji.api.recentemojis.AddRecentEmoji
 import io.element.android.libraries.featureflag.api.FeatureFlagService
 import io.element.android.libraries.featureflag.api.FeatureFlags
+import io.element.android.libraries.matrix.api.MatrixClient
+import io.element.android.libraries.matrix.api.contactmerge.MergedRoomSummary
+import io.element.android.libraries.matrix.api.contactmerge.detectNetwork
 import io.element.android.libraries.matrix.api.core.toThreadId
 import io.element.android.libraries.matrix.api.encryption.EncryptionService
 import io.element.android.libraries.matrix.api.encryption.identity.IdentityState
@@ -106,6 +109,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 @AssistedInject
 class MessagesPresenter(
     @Assisted private val navigator: MessagesNavigator,
+    private val client: MatrixClient,
     private val room: JoinedRoom,
     @Assisted private val composerPresenter: Presenter<MessageComposerState>,
     voiceMessageComposerPresenterFactory: DefaultVoiceMessageComposerPresenter.Factory,
@@ -190,6 +194,31 @@ class MessagesPresenter(
         }
         val heroes by remember {
             derivedStateOf { roomInfo.heroes().toImmutableList() }
+        }
+
+        val contactMergeService = client.contactMergeService
+        val mergedContacts by contactMergeService.mergedContacts.collectAsState(initial = emptyList())
+        val mergedContact = remember(mergedContacts, room.roomId) {
+            mergedContacts.firstOrNull { mc -> mc.roomIds.contains(room.roomId) }
+        }
+        val allRooms by client.roomListService.allRooms.summaries.collectAsState(initial = emptyList())
+        val siblingRooms by remember(mergedContact, allRooms) {
+            derivedStateOf {
+                if (mergedContact == null) return@derivedStateOf persistentListOf<MergedRoomSummary>()
+                mergedContact.roomIds.map { rId ->
+                    val summary = allRooms.firstOrNull { it.roomId == rId }
+                    val name = summary?.info?.name ?: rId.value
+                    val avatarUrl = summary?.info?.avatarUrl
+                    val network = detectNetwork(rId, name)
+                    MergedRoomSummary(
+                        roomId = rId,
+                        name = name,
+                        avatarUrl = avatarUrl,
+                        isActive = rId == room.roomId,
+                        network = network,
+                    )
+                }.toImmutableList()
+            }
         }
 
         var hasDismissedInviteDialog by rememberSaveable {
@@ -311,6 +340,14 @@ class MessagesPresenter(
                         markingAsReadAndExiting.set(false)
                     }
                 }
+                is MessagesEvent.SwitchMergedRoom -> {
+                    coroutineScope.launch {
+                        mergedContact?.let {
+                            contactMergeService.setActiveRoom(it.id, event.roomId)
+                        }
+                        navigator.navigateToRoom(event.roomId, null, emptyList())
+                    }
+                }
             }
         }
 
@@ -340,6 +377,7 @@ class MessagesPresenter(
             dmUserVerificationState = dmUserVerificationState,
             dmUserStatus = roomInfo.dmUserStatus(),
             roomMemberModerationState = roomMemberModerationState,
+            siblingRooms = siblingRooms,
             topBarSharedHistoryIcon = topBarSharedHistoryIcon,
             successorRoom = roomInfo.successorRoom,
             threads = Threads(

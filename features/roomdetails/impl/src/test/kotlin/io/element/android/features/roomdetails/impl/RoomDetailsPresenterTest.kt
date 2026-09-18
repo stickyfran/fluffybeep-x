@@ -39,6 +39,7 @@ import io.element.android.libraries.matrix.test.A_SESSION_ID
 import io.element.android.libraries.matrix.test.A_USER_ID_2
 import io.element.android.libraries.matrix.test.A_USER_NAME
 import io.element.android.libraries.matrix.test.FakeMatrixClient
+import io.element.android.libraries.matrix.test.contactmerge.FakeContactMergeService
 import io.element.android.libraries.matrix.test.encryption.FakeEncryptionService
 import io.element.android.libraries.matrix.test.notificationsettings.FakeNotificationSettingsService
 import io.element.android.libraries.matrix.test.room.aRoomInfo
@@ -688,6 +689,59 @@ class RoomDetailsPresenterTest {
             }
             onDoneResult.assertions().isCalledOnce()
             assertThat(room.baseRoom.setUnreadFlagCalls).containsExactly(true)
+        }
+    }
+
+    @Test
+    fun `present - contact merge - merge with room and switch active`() = runTest {
+        val contactMergeService = FakeContactMergeService()
+        val matrixClient = FakeMatrixClient(contactMergeService = contactMergeService)
+        val room = aJoinedRoom()
+        val siblingRoomId = RoomId("!sibling:domain.com")
+        val presenter = RoomDetailsPresenter(
+            navigator = FakeRoomDetailsNavigator(),
+            client = matrixClient,
+            room = room,
+            notificationSettingsService = matrixClient.notificationSettingsService,
+            roomMembersDetailsPresenterFactory = object : RoomMemberDetailsPresenter.Factory {
+                override fun create(roomMemberId: UserId) = RoomMemberDetailsPresenter(
+                    roomMemberId = roomMemberId,
+                    room = room,
+                    userProfilePresenterFactory = { Presenter { aUserProfileState() } },
+                    encryptionService = FakeEncryptionService(),
+                    clipboardHelper = FakeClipboardHelper(),
+                )
+            },
+            leaveRoomPresenter = { aLeaveRoomState() },
+            roomCallStatePresenter = { aStandByCallState() },
+            dispatchers = testCoroutineDispatchers(),
+            analyticsService = FakeAnalyticsService(),
+            clipboardHelper = FakeClipboardHelper(),
+            appPreferencesStore = InMemoryAppPreferencesStore(),
+            notificationCleaner = FakeNotificationCleaner(),
+            sessionPreferencesStore = InMemorySessionPreferencesStore(),
+        )
+
+        presenter.testWithLifecycleOwner(lifecycleOwner = fakeLifecycleOwner) {
+            skipItems(1)
+            val initialState = awaitItem()
+            assertThat(initialState.mergedContact).isNull()
+
+            // Merge with another room
+            initialState.eventSink(RoomDetailsEvent.MergeWithRoom(siblingRoomId))
+            val mergedState = consumeItemsUntilPredicate { it.mergedContact != null }.last()
+            assertThat(mergedState.mergedContact?.roomIds).containsExactly(room.roomId, siblingRoomId)
+            assertThat(mergedState.mergedContact?.activeRoomId).isEqualTo(room.roomId)
+
+            // Switch active room
+            mergedState.eventSink(RoomDetailsEvent.SetActiveMergeRoom(siblingRoomId))
+            val activeState = consumeItemsUntilPredicate { it.mergedContact?.activeRoomId == siblingRoomId }.last()
+            assertThat(activeState.mergedContact?.activeRoomId).isEqualTo(siblingRoomId)
+
+            // Unlink sibling room
+            activeState.eventSink(RoomDetailsEvent.UnlinkMergedRoom(siblingRoomId))
+            val unmergedState = consumeItemsUntilPredicate { it.mergedContact == null }.last()
+            assertThat(unmergedState.mergedContact).isNull()
         }
     }
 
