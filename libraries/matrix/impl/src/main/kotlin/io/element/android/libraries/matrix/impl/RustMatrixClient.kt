@@ -237,6 +237,15 @@ class RustMatrixClient(
         )
     }
 
+    override val quickSpacesService: io.element.android.libraries.matrix.api.spaces.QuickSpacesService by lazy {
+        io.element.android.libraries.matrix.impl.spaces.DefaultQuickSpacesService(
+            matrixClient = this,
+            dispatchers = dispatchers,
+            jsonProvider = io.element.android.libraries.androidutils.json.DefaultJsonProvider(),
+            sessionCoroutineScope = sessionCoroutineScope,
+        )
+    }
+
     override val ownBeaconInfoUpdates = mxCallbackFlow {
         val listener = object : BeaconInfoListener {
             override fun onUpdate(update: BeaconInfoUpdate) {

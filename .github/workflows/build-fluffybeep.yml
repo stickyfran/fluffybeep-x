@@ -18,7 +18,7 @@ jobs:
     name: Build FluffyBeep X APK
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     concurrency:
       group: ${{ github.ref == 'refs/heads/fluffybeep' && format('build-fluffybeep-{0}', github.sha) || format('build-pr-{0}', github.ref) }}
       cancel-in-progress: true
@@ -59,3 +59,23 @@ jobs:
           name: fluffybeep-x-arm64-debug
           path: app/build/outputs/apk/fdroid/debug/*-arm64-v8a-debug.apk
           retention-days: 14
+
+      - name: Prepare APK for Release
+        if: github.ref == 'refs/heads/fluffybeep' && github.event_name != 'pull_request'
+        run: |
+          APK_FILE=$(ls app/build/outputs/apk/fdroid/debug/*-arm64-v8a-debug.apk | head -n 1)
+          cp "$APK_FILE" fluffybeep-x-arm64-v8a-debug.apk
+
+      - name: Publish to GitHub Releases
+        if: github.ref == 'refs/heads/fluffybeep' && github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@c062e08bd53281573082269a27e3036e782a2786 # v2.0.8
+        with:
+          tag_name: latest
+          name: FluffyBeep X (Latest Build)
+          body: |
+            Build automático de FluffyBeep X (arm64-v8a) generado desde commit `${{ github.sha }}`.
+          draft: false
+          prerelease: true
+          make_latest: true
+          files: |
+            fluffybeep-x-arm64-v8a-debug.apk

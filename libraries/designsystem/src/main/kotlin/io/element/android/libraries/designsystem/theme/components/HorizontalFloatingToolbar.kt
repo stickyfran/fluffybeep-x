@@ -8,14 +8,18 @@
 package io.element.android.libraries.designsystem.theme.components
 
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -24,6 +28,7 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.FloatingToolbarHorizontalFabPosition
 import androidx.compose.material3.FloatingToolbarScrollBehavior
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
@@ -114,6 +119,7 @@ fun HorizontalFloatingToolbarItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     counter: Int? = null,
     forceRenderingTooltip: Boolean = false,
 ) {
@@ -129,12 +135,13 @@ fun HorizontalFloatingToolbarItem(
         isSelected = isSelected,
         onClick = onClick,
         modifier = modifier,
+        onLongClick = onLongClick,
         counter = counter,
         forceRenderingTooltip = forceRenderingTooltip,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HorizontalFloatingToolbarItem(
     iconContent: @Composable () -> Unit,
@@ -142,6 +149,7 @@ fun HorizontalFloatingToolbarItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     counter: Int? = null,
     forceRenderingTooltip: Boolean = false,
 ) {
@@ -168,12 +176,31 @@ fun HorizontalFloatingToolbarItem(
             )
         }
         Box {
-            FilledIconButton(
-                modifier = Modifier.widthIn(min = 56.dp),
-                colors = colors,
-                onClick = onClick,
-            ) {
-                iconContent()
+            if (onLongClick != null) {
+                Surface(
+                    shape = CircleShape,
+                    color = colors.containerColor,
+                    contentColor = colors.contentColor,
+                    modifier = Modifier
+                        .widthIn(min = 56.dp)
+                        .height(40.dp)
+                        .combinedClickable(
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                        ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        iconContent()
+                    }
+                }
+            } else {
+                FilledIconButton(
+                    modifier = Modifier.widthIn(min = 56.dp),
+                    colors = colors,
+                    onClick = onClick,
+                ) {
+                    iconContent()
+                }
             }
             if (counter != null) {
                 CounterAtom(

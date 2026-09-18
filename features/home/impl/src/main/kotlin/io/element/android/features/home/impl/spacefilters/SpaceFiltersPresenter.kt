@@ -23,15 +23,31 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.map
 
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.collections.immutable.toImmutableSet
+import kotlinx.coroutines.launch
+
 @Inject
 class SpaceFiltersPresenter(
     private val matrixClient: MatrixClient,
 ) : Presenter<SpaceFiltersState> {
     @Composable
     override fun present(): SpaceFiltersState {
+        val coroutineScope = rememberCoroutineScope()
         val availableFilters by remember {
             matrixClient.spaceService.spaceFiltersFlow.map { it.toImmutableList() }
         }.collectAsState(initial = persistentListOf())
+
+        val quickSpacesData by matrixClient.quickSpacesService.state.collectAsState()
+        val quickBarFilters = remember(availableFilters, quickSpacesData) {
+            availableFilters.filter { filter ->
+                matrixClient.quickSpacesService.isSpaceInQuickBar(
+                    spaceId = filter.spaceRoom.roomId.value,
+                    displayName = filter.spaceRoom.displayName,
+                    alias = filter.spaceRoom.canonicalAlias?.value,
+                )
+            }.toImmutableList()
+        }
 
         if (availableFilters.isEmpty()) {
             return SpaceFiltersState.Disabled
@@ -47,6 +63,16 @@ class SpaceFiltersPresenter(
                 is SpaceFiltersEvent.Unselected.SelectFilter -> {
                     selectionMode = SelectionMode.Selected(event.spaceFilter)
                 }
+                is SpaceFiltersEvent.TogglePin -> {
+                    coroutineScope.launch {
+                        matrixClient.quickSpacesService.togglePin(event.spaceId)
+                    }
+                }
+                is SpaceFiltersEvent.HideFromQuickBar -> {
+                    coroutineScope.launch {
+                        matrixClient.quickSpacesService.hideFromQuickBar(event.spaceId)
+                    }
+                }
             }
         }
 
@@ -57,6 +83,16 @@ class SpaceFiltersPresenter(
                 }
                 is SpaceFiltersEvent.Selecting.SelectFilter -> {
                     selectionMode = SelectionMode.Selected(event.spaceFilter)
+                }
+                is SpaceFiltersEvent.TogglePin -> {
+                    coroutineScope.launch {
+                        matrixClient.quickSpacesService.togglePin(event.spaceId)
+                    }
+                }
+                is SpaceFiltersEvent.HideFromQuickBar -> {
+                    coroutineScope.launch {
+                        matrixClient.quickSpacesService.hideFromQuickBar(event.spaceId)
+                    }
                 }
             }
         }
@@ -69,18 +105,34 @@ class SpaceFiltersPresenter(
                 is SpaceFiltersEvent.Selected.SelectFilter -> {
                     selectionMode = SelectionMode.Selected(event.spaceFilter)
                 }
+                is SpaceFiltersEvent.TogglePin -> {
+                    coroutineScope.launch {
+                        matrixClient.quickSpacesService.togglePin(event.spaceId)
+                    }
+                }
+                is SpaceFiltersEvent.HideFromQuickBar -> {
+                    coroutineScope.launch {
+                        matrixClient.quickSpacesService.hideFromQuickBar(event.spaceId)
+                    }
+                }
             }
         }
 
         return when (val mode = selectionMode) {
             SelectionMode.Unselected -> SpaceFiltersState.Unselected(
                 availableFilters = availableFilters,
+                quickBarFilters = quickBarFilters,
+                pinnedSpaceIds = quickSpacesData.pinnedSpaceIds.toImmutableSet(),
+                hiddenSpaceIds = quickSpacesData.hiddenSpaceIds.toImmutableSet(),
                 eventSink = ::handleUnselectedEvent,
             )
             SelectionMode.Selecting -> {
                 val searchQuery = rememberTextFieldState()
                 SpaceFiltersState.Selecting(
                     availableFilters = availableFilters,
+                    quickBarFilters = quickBarFilters,
+                    pinnedSpaceIds = quickSpacesData.pinnedSpaceIds.toImmutableSet(),
+                    hiddenSpaceIds = quickSpacesData.hiddenSpaceIds.toImmutableSet(),
                     searchQuery = searchQuery,
                     eventSink = ::handleSelectingEvent,
                 )
@@ -99,6 +151,9 @@ class SpaceFiltersPresenter(
                 }
                 SpaceFiltersState.Selected(
                     availableFilters = availableFilters,
+                    quickBarFilters = quickBarFilters,
+                    pinnedSpaceIds = quickSpacesData.pinnedSpaceIds.toImmutableSet(),
+                    hiddenSpaceIds = quickSpacesData.hiddenSpaceIds.toImmutableSet(),
                     selectedFilter = selectedFilter,
                     eventSink = ::handleSelectedEvent,
                 )

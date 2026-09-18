@@ -10,6 +10,9 @@ package io.element.android.features.home.impl.spacefilters
 import io.element.android.libraries.matrix.api.spaces.SpaceServiceFilter
 
 sealed interface SpaceFiltersEvent {
+    data class TogglePin(val spaceId: String) : SpaceFiltersEvent, Unselected, Selecting, Selected
+    data class HideFromQuickBar(val spaceId: String) : SpaceFiltersEvent, Unselected, Selecting, Selected
+
     // Only valid in Unselected state
     sealed interface Unselected : SpaceFiltersEvent {
         data object ShowFilters : Unselected

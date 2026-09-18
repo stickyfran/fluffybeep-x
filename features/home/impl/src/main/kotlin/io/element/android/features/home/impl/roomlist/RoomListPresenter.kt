@@ -119,6 +119,7 @@ class RoomListPresenter(
 
         val contextMenu = remember { mutableStateOf<RoomListState.ContextMenu>(RoomListState.ContextMenu.Hidden) }
         val declineInviteMenu = remember { mutableStateOf<RoomListState.DeclineInviteMenu>(RoomListState.DeclineInviteMenu.Hidden) }
+        val organizeInSpaces = remember { mutableStateOf<RoomListState.OrganizeInSpaces?>(null) }
 
         fun handleEvent(event: RoomListEvent) {
             when (event) {
@@ -136,6 +137,46 @@ class RoomListPresenter(
                 }
                 is RoomListEvent.HideContextMenu -> {
                     contextMenu.value = RoomListState.ContextMenu.Hidden
+                }
+                is RoomListEvent.ShowOrganizeInSpaces -> {
+                    contextMenu.value = RoomListState.ContextMenu.Hidden
+                    coroutineScope.launch {
+                        val mergedContact = client.contactMergeService.getMergedContactForRoom(event.roomId)
+                        val roomIds = mergedContact?.roomIds ?: listOf(event.roomId)
+                        val room = client.getRoom(event.roomId)
+                        val roomName = mergedContact?.displayName ?: room?.use { it.roomInfoFlow.value.name }
+                        val joinedSpaces = client.spaceService.joinedParents(event.roomId).getOrNull().orEmpty()
+                        val memberSpaceIds = joinedSpaces.map { it.roomId }.toSet()
+                        organizeInSpaces.value = RoomListState.OrganizeInSpaces(
+                            roomId = event.roomId,
+                            roomName = roomName,
+                            memberSpaceIds = memberSpaceIds.toImmutableSet(),
+                            mergedRoomCount = roomIds.size,
+                        )
+                    }
+                }
+                RoomListEvent.HideOrganizeInSpaces -> {
+                    organizeInSpaces.value = null
+                }
+                is RoomListEvent.ToggleSpaceMembership -> {
+                    val current = organizeInSpaces.value
+                    if (current != null) {
+                        val newSet = if (event.isMember) {
+                            current.memberSpaceIds - event.spaceId
+                        } else {
+                            current.memberSpaceIds + event.spaceId
+                        }
+                        organizeInSpaces.value = current.copy(memberSpaceIds = newSet.toImmutableSet())
+                        coroutineScope.launch {
+                            val mergedContact = client.contactMergeService.getMergedContactForRoom(current.roomId)
+                            val roomIds = mergedContact?.roomIds ?: listOf(current.roomId)
+                            if (event.isMember) {
+                                client.spaceService.removeRoomsFromSpace(event.spaceId, roomIds)
+                            } else {
+                                client.spaceService.addRoomsToSpace(event.spaceId, roomIds)
+                            }
+                        }
+                    }
                 }
                 is RoomListEvent.LeaveRoom -> {
                     leaveRoomState.eventSink(LeaveRoomEvent.LeaveRoom(event.roomId, needsConfirmation = event.needsConfirmation))
@@ -188,6 +229,7 @@ class RoomListPresenter(
             acceptDeclineInviteState = acceptDeclineInviteState,
             hideInvitesAvatars = hideInvitesAvatar,
             canReportRoom = canReportRoom,
+            organizeInSpaces = organizeInSpaces.value,
             eventSink = ::handleEvent,
         )
     }

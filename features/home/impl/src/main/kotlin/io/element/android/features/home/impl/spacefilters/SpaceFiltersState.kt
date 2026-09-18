@@ -15,17 +15,26 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
+
 @Immutable
 sealed interface SpaceFiltersState {
     data object Disabled : SpaceFiltersState
 
     data class Unselected(
         val availableFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
+        val quickBarFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
+        val pinnedSpaceIds: ImmutableSet<String> = persistentSetOf(),
+        val hiddenSpaceIds: ImmutableSet<String> = persistentSetOf(),
         val eventSink: (SpaceFiltersEvent.Unselected) -> Unit,
     ) : SpaceFiltersState
 
     data class Selecting(
         val availableFilters: ImmutableList<SpaceServiceFilter>,
+        val quickBarFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
+        val pinnedSpaceIds: ImmutableSet<String> = persistentSetOf(),
+        val hiddenSpaceIds: ImmutableSet<String> = persistentSetOf(),
         val searchQuery: TextFieldState,
         val eventSink: (SpaceFiltersEvent.Selecting) -> Unit,
     ) : SpaceFiltersState {
@@ -42,6 +51,9 @@ sealed interface SpaceFiltersState {
 
     data class Selected(
         val availableFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
+        val quickBarFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
+        val pinnedSpaceIds: ImmutableSet<String> = persistentSetOf(),
+        val hiddenSpaceIds: ImmutableSet<String> = persistentSetOf(),
         val selectedFilter: SpaceServiceFilter,
         val eventSink: (SpaceFiltersEvent.Selected) -> Unit,
     ) : SpaceFiltersState
@@ -60,6 +72,28 @@ fun SpaceFiltersState.availableFilters(): ImmutableList<SpaceServiceFilter> {
         is SpaceFiltersState.Selecting -> this.availableFilters
         is SpaceFiltersState.Selected -> this.availableFilters
         SpaceFiltersState.Disabled -> persistentListOf()
+    }
+}
+
+fun SpaceFiltersState.quickBarFilters(): ImmutableList<SpaceServiceFilter> {
+    return when (this) {
+        is SpaceFiltersState.Unselected -> this.quickBarFilters
+        is SpaceFiltersState.Selecting -> this.quickBarFilters
+        is SpaceFiltersState.Selected -> this.quickBarFilters
+        SpaceFiltersState.Disabled -> persistentListOf()
+    }
+}
+
+fun SpaceFiltersState.isSpaceInQuickBar(spaceId: String, displayName: String? = null, alias: String? = null): Boolean {
+    return quickBarFilters().any { it.spaceRoom.roomId.value == spaceId }
+}
+
+fun SpaceFiltersState.sendEvent(event: SpaceFiltersEvent) {
+    when (this) {
+        is SpaceFiltersState.Unselected -> if (event is SpaceFiltersEvent.Unselected) eventSink(event)
+        is SpaceFiltersState.Selecting -> if (event is SpaceFiltersEvent.Selecting) eventSink(event)
+        is SpaceFiltersState.Selected -> if (event is SpaceFiltersEvent.Selected) eventSink(event)
+        SpaceFiltersState.Disabled -> Unit
     }
 }
 

@@ -21,8 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
+import io.element.android.compound.tokens.generated.CompoundIcons
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -92,6 +95,7 @@ fun SpaceFiltersView(
             ) {
                 if (state is SpaceFiltersState.Selecting) {
                     SpaceFiltersBottomSheetContent(
+                        state = state,
                         filters = state.visibleFilters,
                         searchQuery = state.searchQuery,
                         onSelectFilter = { filter ->
@@ -106,6 +110,7 @@ fun SpaceFiltersView(
 
 @Composable
 private fun SpaceFiltersBottomSheetContent(
+    state: SpaceFiltersState.Selecting,
     filters: ImmutableList<SpaceServiceFilter>,
     searchQuery: TextFieldState,
     onSelectFilter: (SpaceServiceFilter) -> Unit,
@@ -134,8 +139,11 @@ private fun SpaceFiltersBottomSheetContent(
             contentPadding = lazyColumnContentPadding,
         ) {
             items(filters) { filter ->
+                val isPinned = state.isSpaceInQuickBar(filter.spaceRoom.roomId.value)
                 SpaceFilterItem(
                     filter = filter,
+                    isPinned = isPinned,
+                    onTogglePin = { state.eventSink(SpaceFiltersEvent.TogglePin(filter.spaceRoom.roomId.value)) },
                     onClick = { onSelectFilter(filter) }
                 )
             }
@@ -146,6 +154,8 @@ private fun SpaceFiltersBottomSheetContent(
 @Composable
 private fun SpaceFilterItem(
     filter: SpaceServiceFilter,
+    isPinned: Boolean,
+    onTogglePin: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -156,7 +166,7 @@ private fun SpaceFilterItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Level-based indentation
@@ -166,7 +176,7 @@ private fun SpaceFilterItem(
             avatarType = AvatarType.Space(),
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = spaceRoom.displayName,
                 style = ElementTheme.typography.fontBodyLgMedium,
@@ -183,6 +193,15 @@ private fun SpaceFilterItem(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        IconButton(
+            onClick = onTogglePin,
+        ) {
+            Icon(
+                imageVector = if (isPinned) CompoundIcons.PinSolid() else CompoundIcons.Pin(),
+                contentDescription = if (isPinned) "Quitar de barra rápida" else "Fijar en barra rápida",
+                tint = if (isPinned) ElementTheme.colors.iconPrimary else ElementTheme.colors.iconTertiary,
+            )
         }
     }
 }

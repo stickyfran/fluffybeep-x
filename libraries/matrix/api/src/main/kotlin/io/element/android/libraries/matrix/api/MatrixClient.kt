@@ -86,6 +86,9 @@ interface MatrixClient : ClientUrlContentFetcher {
     /** Gives access to merged contacts and unified bridge rooms. */
     val contactMergeService: ContactMergeService
 
+    /** Gives access to quick bar pinned/hidden spaces configuration. */
+    val quickSpacesService: io.element.android.libraries.matrix.api.spaces.QuickSpacesService
+
     /** Controls the sync loop of this session and exposes its state. */
     val syncService: SyncService
 

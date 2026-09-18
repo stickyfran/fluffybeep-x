@@ -34,9 +34,17 @@ data class RoomListState(
     val acceptDeclineInviteState: AcceptDeclineInviteState,
     val hideInvitesAvatars: Boolean,
     val canReportRoom: Boolean,
+    val organizeInSpaces: OrganizeInSpaces? = null,
     val eventSink: (RoomListEvent) -> Unit,
 ) {
     val displayFilters = contentState is RoomListContentState.Rooms
+
+    data class OrganizeInSpaces(
+        val roomId: RoomId,
+        val roomName: String?,
+        val memberSpaceIds: ImmutableSet<RoomId>,
+        val mergedRoomCount: Int = 1,
+    )
 
     sealed interface ContextMenu {
         data object Hidden : ContextMenu

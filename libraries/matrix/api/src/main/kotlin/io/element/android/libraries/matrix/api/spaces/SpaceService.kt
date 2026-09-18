@@ -69,4 +69,26 @@ interface SpaceService {
      * @return A result indicating success or failure.
      */
     suspend fun removeChildFromSpace(spaceId: RoomId, childId: RoomId): Result<Unit>
+
+    /**
+     * Add multiple child rooms to a space (e.g. all siblings of a merged contact).
+     */
+    suspend fun addRoomsToSpace(spaceId: RoomId, roomIds: List<RoomId>): Result<Unit> {
+        return runCatching {
+            for (roomId in roomIds) {
+                addChildToSpace(spaceId, roomId).getOrThrow()
+            }
+        }
+    }
+
+    /**
+     * Remove multiple child rooms from a space (e.g. all siblings of a merged contact).
+     */
+    suspend fun removeRoomsFromSpace(spaceId: RoomId, roomIds: List<RoomId>): Result<Unit> {
+        return runCatching {
+            for (roomId in roomIds) {
+                removeChildFromSpace(spaceId, roomId).getOrThrow()
+            }
+        }
+    }
 }

@@ -41,7 +41,8 @@ fun RoomListContextMenu(
     canReportRoom: Boolean,
     eventSink: (RoomListEvent.ContextMenuEvent) -> Unit,
     onRoomSettingsClick: (roomId: RoomId) -> Unit,
-    onReportRoomClick: (roomId: RoomId) -> Unit
+    onReportRoomClick: (roomId: RoomId) -> Unit,
+    onOrganizeInSpacesClick: (roomId: RoomId) -> Unit = {},
 ) {
     ModalBottomSheet(
         onDismissRequest = { eventSink(RoomListEvent.HideContextMenu) },
@@ -69,6 +70,10 @@ fun RoomListContextMenu(
             onFavoriteChange = { isFavorite ->
                 eventSink(RoomListEvent.SetRoomIsFavorite(contextMenu.roomId, isFavorite))
             },
+            onOrganizeInSpacesClick = {
+                eventSink(RoomListEvent.HideContextMenu)
+                onOrganizeInSpacesClick(contextMenu.roomId)
+            },
             onReportRoomClick = {
                 eventSink(RoomListEvent.HideContextMenu)
                 onReportRoomClick(contextMenu.roomId)
@@ -84,6 +89,7 @@ private fun RoomListModalBottomSheetContent(
     onRoomSettingsClick: () -> Unit,
     onLeaveRoomClick: () -> Unit,
     onFavoriteChange: (isFavorite: Boolean) -> Unit,
+    onOrganizeInSpacesClick: () -> Unit,
     onRoomMarkReadClick: () -> Unit,
     onRoomMarkUnreadClick: () -> Unit,
     onReportRoomClick: () -> Unit,
@@ -152,6 +158,20 @@ private fun RoomListModalBottomSheetContent(
             onClick = {
                 onFavoriteChange(!contextMenu.isFavorite)
             },
+        )
+        ListItem(
+            content = {
+                Text(
+                    text = "Organizar en Espacios",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            modifier = Modifier.clickable { onOrganizeInSpacesClick() },
+            leadingContent = ListItemContent.Icon(
+                iconSource = IconSource.Vector(
+                    CompoundIcons.Space(),
+                )
+            ),
         )
         ListItem(
             content = {

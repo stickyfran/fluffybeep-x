@@ -24,14 +24,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -62,6 +67,8 @@ import io.element.android.features.home.impl.spacefilters.SpaceFiltersEvent
 import io.element.android.features.home.impl.spacefilters.SpaceFiltersState
 import io.element.android.features.home.impl.spacefilters.SpaceFiltersView
 import io.element.android.features.home.impl.spacefilters.availableFilters
+import io.element.android.features.home.impl.spacefilters.quickBarFilters
+import io.element.android.features.home.impl.spacefilters.sendEvent
 import io.element.android.features.home.impl.spaces.HomeSpacesView
 import io.element.android.libraries.androidutils.throttler.FirstThrottler
 import io.element.android.libraries.designsystem.components.avatar.Avatar
@@ -77,6 +84,7 @@ import io.element.android.libraries.designsystem.theme.components.HorizontalFloa
 import io.element.android.libraries.designsystem.theme.components.HorizontalFloatingToolbarSeparator
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.Scaffold
+import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.utils.lazyColumnContentPadding
 import io.element.android.libraries.designsystem.utils.scaffoldScrollableContentInsets
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarHost
@@ -114,6 +122,24 @@ fun HomeView(
                 eventSink = state.eventSink,
                 onRoomSettingsClick = onRoomSettingsClick,
                 onReportRoomClick = onReportRoomClick,
+                onOrganizeInSpacesClick = { roomId ->
+                    state.eventSink(RoomListEvent.ShowOrganizeInSpaces(roomId))
+                },
+            )
+        }
+        val organizeInSpaces = state.organizeInSpaces
+        if (organizeInSpaces != null) {
+            io.element.android.features.home.impl.spaces.OrganizeInSpacesBottomSheet(
+                roomName = organizeInSpaces.roomName,
+                spaceFilters = state.spaceFiltersState.availableFilters(),
+                memberSpaceIds = organizeInSpaces.memberSpaceIds,
+                mergedRoomCount = organizeInSpaces.mergedRoomCount,
+                onToggleSpace = { spaceId, isMember ->
+                    state.eventSink(RoomListEvent.ToggleSpaceMembership(spaceId, isMember))
+                },
+                onDismissRequest = {
+                    state.eventSink(RoomListEvent.HideOrganizeInSpaces)
+                },
             )
         }
         if (state.declineInviteMenu is RoomListState.DeclineInviteMenu.Shown) {
@@ -399,7 +425,7 @@ private fun HomeBottomBar(
     modifier: Modifier = Modifier,
     floatingActionButton: (@Composable () -> Unit)?,
 ) {
-    val availableFilters = spaceFiltersState.availableFilters()
+    val availableFilters = spaceFiltersState.quickBarFilters()
     val isAllChatsSelected = currentHomeNavigationBarItem == HomeNavigationBarItem.Chats &&
         spaceFiltersState !is SpaceFiltersState.Selected
 
@@ -423,17 +449,39 @@ private fun HomeBottomBar(
                 spaceFiltersState.selectedFilter.spaceRoom.roomId == space.spaceRoom.roomId
             val spaceRoom = space.spaceRoom
 
-            HorizontalFloatingToolbarItem(
-                iconContent = {
-                    Avatar(
-                        avatarData = spaceRoom.getAvatarData(AvatarSize.TimelineThreadLatestEventSender),
-                        avatarType = AvatarType.Space(),
+            var showMenu by remember { mutableStateOf(false) }
+            Box {
+                HorizontalFloatingToolbarItem(
+                    iconContent = {
+                        Avatar(
+                            avatarData = spaceRoom.getAvatarData(AvatarSize.TimelineThreadLatestEventSender),
+                            avatarType = AvatarType.Space(),
+                        )
+                    },
+                    tooltipLabel = spaceRoom.displayName,
+                    isSelected = isSpaceSelected,
+                    onClick = { onSelectSpace(space) },
+                    onLongClick = { showMenu = true },
+                )
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Ocultar de la barra rápida") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = CompoundIcons.Pin(),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            spaceFiltersState.sendEvent(SpaceFiltersEvent.HideFromQuickBar(space.spaceRoom.roomId.value))
+                        }
                     )
-                },
-                tooltipLabel = spaceRoom.displayName,
-                isSelected = isSpaceSelected,
-                onClick = { onSelectSpace(space) },
-            )
+                }
+            }
         }
 
         // 3. Spaces explore/management tab
