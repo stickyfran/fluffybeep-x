@@ -50,14 +50,12 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/fluffybeep' }}
 
-      - name: Assemble debug APK (FDroid flavor)
-        run: ./gradlew :app:assembleFDroidDebug $CI_GRADLE_ARG_PROPERTIES
+      - name: Assemble debug APK (FDroid flavor - arm64-v8a only)
+        run: ./gradlew :app:assembleFDroidDebug -PtargetAbi=arm64-v8a $CI_GRADLE_ARG_PROPERTIES
 
       - name: Upload debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: fluffybeep-x-debug
-          path: |
-            app/build/outputs/apk/fdroid/debug/*-universal-debug.apk
-            app/build/outputs/apk/fdroid/debug/*-arm64-v8a-debug.apk
+          name: fluffybeep-x-arm64-debug
+          path: app/build/outputs/apk/fdroid/debug/*-arm64-v8a-debug.apk
           retention-days: 14
