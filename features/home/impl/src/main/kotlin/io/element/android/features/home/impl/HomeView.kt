@@ -61,8 +61,14 @@ import io.element.android.features.home.impl.search.RoomListSearchView
 import io.element.android.features.home.impl.spacefilters.SpaceFiltersEvent
 import io.element.android.features.home.impl.spacefilters.SpaceFiltersState
 import io.element.android.features.home.impl.spacefilters.SpaceFiltersView
+import io.element.android.features.home.impl.spacefilters.availableFilters
 import io.element.android.features.home.impl.spaces.HomeSpacesView
 import io.element.android.libraries.androidutils.throttler.FirstThrottler
+import io.element.android.libraries.designsystem.components.avatar.Avatar
+import io.element.android.libraries.designsystem.components.avatar.AvatarSize
+import io.element.android.libraries.designsystem.components.avatar.AvatarType
+import io.element.android.libraries.matrix.api.spaces.SpaceServiceFilter
+import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.FloatingActionButton
@@ -236,23 +242,66 @@ private fun HomeScaffold(
                 // navigation bar, so the floating toolbar has to apply the bottom inset itself to avoid overlapping it.
                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars),
                 currentHomeNavigationBarItem = state.currentHomeNavigationBarItem,
-                onItemClick = { item ->
-                    // scroll to top if selecting the same item
-                    if (item == state.currentHomeNavigationBarItem) {
-                        val lazyListStateTarget = when (item) {
-                            HomeNavigationBarItem.Chats -> roomsLazyListState
-                            HomeNavigationBarItem.Spaces -> spacesLazyListState
-                        }
+                spaceFiltersState = roomListState.spaceFiltersState,
+                onSelectAllChats = {
+                    if (state.currentHomeNavigationBarItem != HomeNavigationBarItem.Chats) {
+                        state.eventSink(HomeEvent.SelectHomeNavigationBarItem(HomeNavigationBarItem.Chats))
+                    }
+                    val spaceFiltersState = roomListState.spaceFiltersState
+                    if (spaceFiltersState is SpaceFiltersState.Selected) {
+                        spaceFiltersState.eventSink(SpaceFiltersEvent.Selected.ClearSelection)
+                    } else if (state.currentHomeNavigationBarItem == HomeNavigationBarItem.Chats) {
                         coroutineScope.launch {
-                            if (lazyListStateTarget.firstVisibleItemIndex > 10) {
-                                lazyListStateTarget.scrollToItem(10)
+                            if (roomsLazyListState.firstVisibleItemIndex > 10) {
+                                roomsLazyListState.scrollToItem(10)
                             }
-                            // Also reset the scrollBehavior height offset as it's not triggered by programmatic scrolls
                             scrollBehavior.state.heightOffset = 0f
-                            lazyListStateTarget.animateScrollToItem(0)
+                            roomsLazyListState.animateScrollToItem(0)
+                        }
+                    }
+                },
+                onSelectSpace = { space ->
+                    if (state.currentHomeNavigationBarItem != HomeNavigationBarItem.Chats) {
+                        state.eventSink(HomeEvent.SelectHomeNavigationBarItem(HomeNavigationBarItem.Chats))
+                    }
+                    val spaceFiltersState = roomListState.spaceFiltersState
+                    val isAlreadySelected = spaceFiltersState is SpaceFiltersState.Selected &&
+                        spaceFiltersState.selectedFilter.spaceRoom.roomId == space.spaceRoom.roomId
+
+                    if (isAlreadySelected) {
+                        coroutineScope.launch {
+                            if (roomsLazyListState.firstVisibleItemIndex > 10) {
+                                roomsLazyListState.scrollToItem(10)
+                            }
+                            scrollBehavior.state.heightOffset = 0f
+                            roomsLazyListState.animateScrollToItem(0)
                         }
                     } else {
-                        state.eventSink(HomeEvent.SelectHomeNavigationBarItem(item))
+                        when (spaceFiltersState) {
+                            is SpaceFiltersState.Unselected -> {
+                                spaceFiltersState.eventSink(SpaceFiltersEvent.Unselected.SelectFilter(space))
+                            }
+                            is SpaceFiltersState.Selected -> {
+                                spaceFiltersState.eventSink(SpaceFiltersEvent.Selected.SelectFilter(space))
+                            }
+                            is SpaceFiltersState.Selecting -> {
+                                spaceFiltersState.eventSink(SpaceFiltersEvent.Selecting.SelectFilter(space))
+                            }
+                            SpaceFiltersState.Disabled -> Unit
+                        }
+                    }
+                },
+                onSelectSpacesTab = {
+                    if (state.currentHomeNavigationBarItem == HomeNavigationBarItem.Spaces) {
+                        coroutineScope.launch {
+                            if (spacesLazyListState.firstVisibleItemIndex > 10) {
+                                spacesLazyListState.scrollToItem(10)
+                            }
+                            scrollBehavior.state.heightOffset = 0f
+                            spacesLazyListState.animateScrollToItem(0)
+                        }
+                    } else {
+                        state.eventSink(HomeEvent.SelectHomeNavigationBarItem(HomeNavigationBarItem.Spaces))
                     }
                 },
                 floatingActionButton = {
@@ -343,27 +392,59 @@ private fun HomeFloatingActionButton(
 @Composable
 private fun HomeBottomBar(
     currentHomeNavigationBarItem: HomeNavigationBarItem,
-    onItemClick: (HomeNavigationBarItem) -> Unit,
+    spaceFiltersState: SpaceFiltersState,
+    onSelectAllChats: () -> Unit,
+    onSelectSpace: (SpaceServiceFilter) -> Unit,
+    onSelectSpacesTab: () -> Unit,
     modifier: Modifier = Modifier,
     floatingActionButton: (@Composable () -> Unit)?,
 ) {
+    val availableFilters = spaceFiltersState.availableFilters()
+    val isAllChatsSelected = currentHomeNavigationBarItem == HomeNavigationBarItem.Chats &&
+        spaceFiltersState !is SpaceFiltersState.Selected
+
     HorizontalFloatingToolbar(
         floatingActionButton = floatingActionButton,
-        modifier = modifier
-            .zIndex(1f),
+        modifier = modifier.zIndex(1f),
     ) {
-        HomeNavigationBarItem.entries.forEachIndexed { index, item ->
-            if (index > 0) {
-                HorizontalFloatingToolbarSeparator()
-            }
-            val isSelected = currentHomeNavigationBarItem == item
+        // 1. All Chats tab
+        HorizontalFloatingToolbarItem(
+            icon = if (isAllChatsSelected) CompoundIcons.ChatSolid() else CompoundIcons.Chat(),
+            tooltipLabel = stringResource(R.string.screen_home_tab_chats),
+            isSelected = isAllChatsSelected,
+            onClick = onSelectAllChats,
+        )
+
+        // 2. Spaces as dynamic icons (like Telegram folders)
+        for (space in availableFilters) {
+            HorizontalFloatingToolbarSeparator()
+            val isSpaceSelected = currentHomeNavigationBarItem == HomeNavigationBarItem.Chats &&
+                spaceFiltersState is SpaceFiltersState.Selected &&
+                spaceFiltersState.selectedFilter.spaceRoom.roomId == space.spaceRoom.roomId
+            val spaceRoom = space.spaceRoom
+
             HorizontalFloatingToolbarItem(
-                icon = item.icon(isSelected),
-                tooltipLabel = stringResource(item.labelRes),
-                isSelected = isSelected,
-                onClick = { onItemClick(item) },
+                iconContent = {
+                    Avatar(
+                        avatarData = spaceRoom.getAvatarData(AvatarSize.TimelineThreadLatestEventSender),
+                        avatarType = AvatarType.Space(),
+                    )
+                },
+                tooltipLabel = spaceRoom.displayName,
+                isSelected = isSpaceSelected,
+                onClick = { onSelectSpace(space) },
             )
         }
+
+        // 3. Spaces explore/management tab
+        HorizontalFloatingToolbarSeparator()
+        val isSpacesTabSelected = currentHomeNavigationBarItem == HomeNavigationBarItem.Spaces
+        HorizontalFloatingToolbarItem(
+            icon = if (isSpacesTabSelected) CompoundIcons.SpaceSolid() else CompoundIcons.Space(),
+            tooltipLabel = stringResource(R.string.screen_home_tab_spaces),
+            isSelected = isSpacesTabSelected,
+            onClick = onSelectSpacesTab,
+        )
     }
 }
 

@@ -117,6 +117,34 @@ fun HorizontalFloatingToolbarItem(
     counter: Int? = null,
     forceRenderingTooltip: Boolean = false,
 ) {
+    HorizontalFloatingToolbarItem(
+        iconContent = {
+            Icon(
+                modifier = Modifier.size(24.dp),
+                imageVector = icon,
+                contentDescription = tooltipLabel,
+            )
+        },
+        tooltipLabel = tooltipLabel,
+        isSelected = isSelected,
+        onClick = onClick,
+        modifier = modifier,
+        counter = counter,
+        forceRenderingTooltip = forceRenderingTooltip,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HorizontalFloatingToolbarItem(
+    iconContent: @Composable () -> Unit,
+    tooltipLabel: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    counter: Int? = null,
+    forceRenderingTooltip: Boolean = false,
+) {
     TooltipBox(
         positionProvider =
             TooltipDefaults.rememberTooltipPositionProvider(
@@ -145,11 +173,7 @@ fun HorizontalFloatingToolbarItem(
                 colors = colors,
                 onClick = onClick,
             ) {
-                Icon(
-                    modifier = Modifier.size(24.dp),
-                    imageVector = icon,
-                    contentDescription = tooltipLabel,
-                )
+                iconContent()
             }
             if (counter != null) {
                 CounterAtom(

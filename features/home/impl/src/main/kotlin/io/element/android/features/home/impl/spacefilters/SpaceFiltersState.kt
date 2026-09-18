@@ -12,6 +12,7 @@ import androidx.compose.runtime.Immutable
 import io.element.android.libraries.matrix.api.roomlist.RoomListFilter
 import io.element.android.libraries.matrix.api.spaces.SpaceServiceFilter
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 @Immutable
@@ -19,6 +20,7 @@ sealed interface SpaceFiltersState {
     data object Disabled : SpaceFiltersState
 
     data class Unselected(
+        val availableFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
         val eventSink: (SpaceFiltersEvent.Unselected) -> Unit,
     ) : SpaceFiltersState
 
@@ -39,6 +41,7 @@ sealed interface SpaceFiltersState {
     }
 
     data class Selected(
+        val availableFilters: ImmutableList<SpaceServiceFilter> = persistentListOf(),
         val selectedFilter: SpaceServiceFilter,
         val eventSink: (SpaceFiltersEvent.Selected) -> Unit,
     ) : SpaceFiltersState
@@ -48,6 +51,15 @@ fun SpaceFiltersState.selectedFilter(): SpaceServiceFilter? {
     return when (this) {
         is SpaceFiltersState.Selected -> this.selectedFilter
         else -> null
+    }
+}
+
+fun SpaceFiltersState.availableFilters(): ImmutableList<SpaceServiceFilter> {
+    return when (this) {
+        is SpaceFiltersState.Unselected -> this.availableFilters
+        is SpaceFiltersState.Selecting -> this.availableFilters
+        is SpaceFiltersState.Selected -> this.availableFilters
+        SpaceFiltersState.Disabled -> persistentListOf()
     }
 }
 
