@@ -60,22 +60,15 @@ jobs:
           path: app/build/outputs/apk/fdroid/debug/*-arm64-v8a-debug.apk
           retention-days: 14
 
-      - name: Prepare APK for Release
+      - name: Publish to GitHub Releases
         if: github.ref == 'refs/heads/fluffybeep' && github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APK_FILE=$(ls app/build/outputs/apk/fdroid/debug/*-arm64-v8a-debug.apk | head -n 1)
           cp "$APK_FILE" fluffybeep-x-arm64-v8a-debug.apk
-
-      - name: Publish to GitHub Releases
-        if: github.ref == 'refs/heads/fluffybeep' && github.event_name != 'pull_request'
-        uses: softprops/action-gh-release@c062e08bd53281573082269a27e3036e782a2786 # v2.0.8
-        with:
-          tag_name: latest
-          name: FluffyBeep X (Latest Build)
-          body: |
-            Build automático de FluffyBeep X (arm64-v8a) generado desde commit `${{ github.sha }}`.
-          draft: false
-          prerelease: true
-          make_latest: true
-          files: |
-            fluffybeep-x-arm64-v8a-debug.apk
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest fluffybeep-x-arm64-v8a-debug.apk \
+            --title "FluffyBeep X (Latest Build)" \
+            --notes "Build automático de FluffyBeep X (arm64-v8a) generado desde commit \`${{ github.sha }}\`." \
+            --prerelease
