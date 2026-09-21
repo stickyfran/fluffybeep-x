@@ -134,6 +134,7 @@ internal fun RoomSummaryRow(
                         timestamp = room.timestamp,
                         isHighlighted = room.isHighlighted,
                         dmUserStatus = room.dmUserStatus,
+                        labelEmojis = room.labelEmojis,
                     )
                     MessagePreviewAndIndicatorRow(room = room, showUnreadCount = showUnreadCount)
                 }
@@ -245,13 +246,15 @@ private fun NameAndTimestampRow(
     timestamp: String?,
     isHighlighted: Boolean,
     dmUserStatus: DisplayedStatus?,
+    labelEmojis: ImmutableList<String> = persistentListOf(),
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = spacedBy(16.dp)
     ) {
-        val displayName = name?.toSafeLength(ellipsize = true) ?: stringResource(id = CommonStrings.common_no_room_name)
+        val labelPrefix = if (labelEmojis.isNotEmpty()) labelEmojis.joinToString(separator = " ") + " " else ""
+        val displayName = labelPrefix + (name?.toSafeLength(ellipsize = true) ?: stringResource(id = CommonStrings.common_no_room_name))
         DisplayNameWithStatus(
             name = displayName,
             status = dmUserStatus,

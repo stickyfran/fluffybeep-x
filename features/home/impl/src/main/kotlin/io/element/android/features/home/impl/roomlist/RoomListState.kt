@@ -35,6 +35,9 @@ data class RoomListState(
     val hideInvitesAvatars: Boolean,
     val canReportRoom: Boolean,
     val organizeInSpaces: OrganizeInSpaces? = null,
+    val manageLabels: ManageLabels? = null,
+    val isCreatingLabel: Boolean = false,
+    val labelToEdit: io.element.android.libraries.matrix.api.labels.RoomLabel? = null,
     val eventSink: (RoomListEvent) -> Unit,
 ) {
     val displayFilters = contentState is RoomListContentState.Rooms
@@ -43,6 +46,13 @@ data class RoomListState(
         val roomId: RoomId,
         val roomName: String?,
         val memberSpaceIds: ImmutableSet<RoomId>,
+        val mergedRoomCount: Int = 1,
+    )
+
+    data class ManageLabels(
+        val roomId: RoomId,
+        val roomName: String?,
+        val labels: ImmutableList<io.element.android.libraries.matrix.api.labels.RoomLabel>,
         val mergedRoomCount: Int = 1,
     )
 

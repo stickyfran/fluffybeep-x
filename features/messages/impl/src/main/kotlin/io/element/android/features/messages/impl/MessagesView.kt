@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -269,8 +270,13 @@ fun MessagesView(
                                 MessagesMenuActions(
                                     displayThreads = state.timelineState.timelineMode !is Timeline.Mode.Thread && state.threads.hasThreads,
                                     roomCallState = state.roomCallState,
+                                    whatsAppPhone = state.whatsAppPhone,
+                                    instagramId = state.instagramId,
                                     onJoinCallClick = onJoinCallClick,
-                                    onThreadsListClick = onThreadsListClick
+                                    onThreadsListClick = onThreadsListClick,
+                                    onWhatsAppClick = { state.eventSink(MessagesEvent.LaunchWhatsApp(state.whatsAppPhone)) },
+                                    onDialPhoneClick = { state.eventSink(MessagesEvent.DialWhatsAppPhone(state.whatsAppPhone.orEmpty())) },
+                                    onInstagramClick = { state.eventSink(MessagesEvent.LaunchInstagram(state.instagramId)) },
                                 )
                             }
                         )
@@ -488,9 +494,51 @@ fun MessagesView(
 internal fun RowScope.MessagesMenuActions(
     displayThreads: Boolean,
     roomCallState: RoomCallState,
+    whatsAppPhone: String? = null,
+    instagramId: String? = null,
     onJoinCallClick: (isAudioCall: Boolean) -> Unit,
     onThreadsListClick: () -> Unit,
+    onWhatsAppClick: () -> Unit = {},
+    onDialPhoneClick: () -> Unit = {},
+    onInstagramClick: () -> Unit = {},
 ) {
+    if (whatsAppPhone != null) {
+        IconButton(
+            onClick = onDialPhoneClick,
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = CompoundIcons.VoiceCallSolid(),
+                contentDescription = "Llamar por teléfono",
+                tint = Color(0xFF25D366),
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+        IconButton(
+            onClick = onWhatsAppClick,
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = CompoundIcons.ChatSolid(),
+                contentDescription = "Abrir en WhatsApp",
+                tint = Color(0xFF25D366),
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+    }
+    if (instagramId != null) {
+        IconButton(
+            onClick = onInstagramClick,
+            modifier = Modifier.size(36.dp),
+        ) {
+            Icon(
+                imageVector = CompoundIcons.TakePhoto(),
+                contentDescription = "Abrir en Instagram",
+                tint = Color(0xFFE1306C),
+            )
+        }
+        Spacer(Modifier.width(4.dp))
+    }
     if (displayThreads) {
         Icon(
             modifier = Modifier.clickable(enabled = true, onClick = onThreadsListClick),

@@ -89,6 +89,12 @@ interface MatrixClient : ClientUrlContentFetcher {
     /** Gives access to quick bar pinned/hidden spaces configuration. */
     val quickSpacesService: io.element.android.libraries.matrix.api.spaces.QuickSpacesService
 
+    /** Gives access to bridge launcher and phone dialing features. */
+    val bridgeLauncherService: io.element.android.libraries.matrix.api.bridgelauncher.BridgeLauncherService
+
+    /** Gives access to room and contact labels. */
+    val labelService: io.element.android.libraries.matrix.api.labels.LabelService
+
     /** Controls the sync loop of this session and exposes its state. */
     val syncService: SyncService
 

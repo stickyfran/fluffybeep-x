@@ -45,6 +45,9 @@ private data class MergedContactDto(
     val roomIds: List<String>,
     val activeRoomId: String,
     val customAvatarUrl: String? = null,
+    val phoneContactId: String? = null,
+    val customWhatsAppPhone: String? = null,
+    val customInstagramHandle: String? = null,
 ) {
     fun toModel(): MergedContact = MergedContact(
         id = id,
@@ -52,6 +55,9 @@ private data class MergedContactDto(
         roomIds = roomIds.map(::RoomId),
         activeRoomId = RoomId(activeRoomId),
         customAvatarUrl = customAvatarUrl,
+        phoneContactId = phoneContactId,
+        customWhatsAppPhone = customWhatsAppPhone,
+        customInstagramHandle = customInstagramHandle,
     )
 }
 
@@ -60,6 +66,9 @@ private data class BeeperMergedContactDto(
     val displayName: String? = null,
     val avatarMxc: String? = null,
     val roomIds: List<String> = emptyList(),
+    val phoneContactId: String? = null,
+    val customWhatsAppPhone: String? = null,
+    val customInstagramHandle: String? = null,
     val createdAt: Long? = null,
 )
 
@@ -74,6 +83,9 @@ private fun MergedContact.toDto(): MergedContactDto = MergedContactDto(
     roomIds = roomIds.map { it.value },
     activeRoomId = activeRoomId.value,
     customAvatarUrl = customAvatarUrl,
+    phoneContactId = phoneContactId,
+    customWhatsAppPhone = customWhatsAppPhone,
+    customInstagramHandle = customInstagramHandle,
 )
 
 @SingleIn(SessionScope::class)
@@ -105,7 +117,10 @@ class DefaultContactMergeService(
             try {
                 val beeperContainer = jsonProvider().decodeFromString<BeeperMergesContainer>(beeperJson)
                 beeperContainer.contacts.forEach { (id, dto) ->
-                    if (dto.roomIds.size >= 2) {
+                    val isTripleOrCustom = !dto.phoneContactId.isNullOrBlank() ||
+                        !dto.customWhatsAppPhone.isNullOrBlank() ||
+                        !dto.customInstagramHandle.isNullOrBlank()
+                    if (dto.roomIds.size >= 2 || (dto.roomIds.isNotEmpty() && isTripleOrCustom)) {
                         loaded.add(
                             MergedContact(
                                 id = id,
@@ -113,6 +128,9 @@ class DefaultContactMergeService(
                                 roomIds = dto.roomIds.map(::RoomId),
                                 activeRoomId = RoomId(dto.roomIds.first()),
                                 customAvatarUrl = dto.avatarMxc,
+                                phoneContactId = dto.phoneContactId,
+                                customWhatsAppPhone = dto.customWhatsAppPhone,
+                                customInstagramHandle = dto.customInstagramHandle,
                             )
                         )
                     }
@@ -156,6 +174,9 @@ class DefaultContactMergeService(
                     displayName = mc.displayName,
                     avatarMxc = mc.customAvatarUrl,
                     roomIds = mc.roomIds.map { it.value },
+                    phoneContactId = mc.phoneContactId,
+                    customWhatsAppPhone = mc.customWhatsAppPhone,
+                    customInstagramHandle = mc.customInstagramHandle,
                     createdAt = System.currentTimeMillis() / 1000,
                 )
             }
@@ -223,8 +244,8 @@ class DefaultContactMergeService(
             val current = _mergedContacts.value.firstOrNull { it.id == mergeId }
                 ?: throw IllegalArgumentException("Merge $mergeId not found")
             val newRoomIds = current.roomIds.filterNot { it == roomId }
-            if (newRoomIds.size <= 1) {
-                // If only 1 room remains, unmerge completely
+            if (newRoomIds.isEmpty() || (newRoomIds.size <= 1 && !current.isTripleOrCustom)) {
+                // If only 1 room remains and no custom/triple phone metadata, unmerge completely
                 unmergeContact(mergeId).getOrThrow()
             } else {
                 val newActiveRoomId = if (current.activeRoomId == roomId) newRoomIds.first() else current.activeRoomId

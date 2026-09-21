@@ -8,6 +8,7 @@
 
 package io.element.android.libraries.matrix.impl
 
+import android.content.Context
 import io.element.android.libraries.androidutils.file.getSizeOfFiles
 import io.element.android.libraries.core.bool.orFalse
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
@@ -162,6 +163,7 @@ class RustMatrixClient(
     private val workManagerScheduler: WorkManagerScheduler,
     override val contentScanner: ContentScanner?,
     override val isMessageSearchAvailable: Boolean,
+    private val context: Context? = null,
 ) : MatrixClient {
     override val sessionId: UserId = UserId(innerClient.userId())
     override val deviceId: DeviceId = DeviceId(innerClient.deviceId())
@@ -242,6 +244,21 @@ class RustMatrixClient(
             matrixClient = this,
             dispatchers = dispatchers,
             jsonProvider = io.element.android.libraries.androidutils.json.DefaultJsonProvider(),
+            sessionCoroutineScope = sessionCoroutineScope,
+        )
+    }
+
+    override val bridgeLauncherService: io.element.android.libraries.matrix.api.bridgelauncher.BridgeLauncherService by lazy {
+        io.element.android.libraries.matrix.impl.bridgelauncher.DefaultBridgeLauncherService(
+            context = context,
+            matrixClient = this,
+        )
+    }
+
+    override val labelService: io.element.android.libraries.matrix.api.labels.LabelService by lazy {
+        io.element.android.libraries.matrix.impl.labels.DefaultLabelService(
+            matrixClient = this,
+            dispatchers = dispatchers,
             sessionCoroutineScope = sessionCoroutineScope,
         )
     }

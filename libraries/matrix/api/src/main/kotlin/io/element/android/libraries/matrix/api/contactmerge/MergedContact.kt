@@ -19,4 +19,12 @@ data class MergedContact(
     val roomIds: List<RoomId>,
     val activeRoomId: RoomId,
     val customAvatarUrl: String? = null,
-)
+    val phoneContactId: String? = null,
+    val customWhatsAppPhone: String? = null,
+    val customInstagramHandle: String? = null,
+) {
+    val isTripleOrCustom: Boolean
+        get() = !phoneContactId.isNullOrBlank() ||
+            !customWhatsAppPhone.isNullOrBlank() ||
+            !customInstagramHandle.isNullOrBlank()
+}

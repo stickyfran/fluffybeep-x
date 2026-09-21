@@ -90,6 +90,8 @@ class FakeMatrixClient(
     override val spaceService: SpaceService = FakeSpaceService(),
     override val contactMergeService: ContactMergeService = FakeContactMergeService(),
     override val quickSpacesService: io.element.android.libraries.matrix.api.spaces.QuickSpacesService = io.element.android.libraries.matrix.test.spaces.FakeQuickSpacesService(),
+    override val bridgeLauncherService: io.element.android.libraries.matrix.api.bridgelauncher.BridgeLauncherService = io.element.android.libraries.matrix.test.bridgelauncher.FakeBridgeLauncherService(),
+    override val labelService: io.element.android.libraries.matrix.api.labels.LabelService = io.element.android.libraries.matrix.test.labels.FakeLabelService(),
     override val matrixMediaLoader: MatrixMediaLoader = FakeMatrixMediaLoader(),
     override val sessionVerificationService: SessionVerificationService = FakeSessionVerificationService(),
     override val pushersService: PushersService = FakePushersService(),

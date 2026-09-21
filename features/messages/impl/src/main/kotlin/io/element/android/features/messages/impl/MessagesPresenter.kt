@@ -231,6 +231,33 @@ class MessagesPresenter(
             }
         }
 
+        val whatsAppPhone by remember(roomInfo, siblingRooms) {
+            derivedStateOf {
+                client.bridgeLauncherService.extractWhatsAppPhone(room.roomId)
+                    ?: siblingRooms.firstNotNullOfOrNull { client.bridgeLauncherService.extractWhatsAppPhone(it.roomId) }
+            }
+        }
+
+        val instagramId by remember(roomInfo, siblingRooms) {
+            derivedStateOf {
+                client.bridgeLauncherService.extractInstagramId(room.roomId)
+                    ?: siblingRooms.firstNotNullOfOrNull { client.bridgeLauncherService.extractInstagramId(it.roomId) }
+            }
+        }
+
+        LaunchedEffect(timelineState.timelineItems) {
+            val latestEvent = timelineState.timelineItems.filterIsInstance<TimelineItem.Event>().firstOrNull()
+            if (latestEvent != null) {
+                val body = (latestEvent.content as? TimelineItemTextBasedContent)?.body
+                if (body?.contains("Incoming call. Use the WhatsApp app to answer.") == true) {
+                    val age = System.currentTimeMillis() - latestEvent.sentTimeMillis
+                    if (age in 0..45_000L) {
+                        client.bridgeLauncherService.launchWhatsAppApp()
+                    }
+                }
+            }
+        }
+
         var hasDismissedInviteDialog by rememberSaveable {
             mutableStateOf(false)
         }
@@ -364,6 +391,28 @@ class MessagesPresenter(
                         navigator.switchRoom(event.roomId)
                     }
                 }
+                is MessagesEvent.LaunchWhatsApp -> {
+                    coroutineScope.launch {
+                        val targetPhone = event.phone ?: whatsAppPhone
+                        client.bridgeLauncherService.openWhatsApp(targetPhone)
+                    }
+                }
+                is MessagesEvent.LaunchInstagram -> {
+                    coroutineScope.launch {
+                        val targetId = event.userOrId ?: instagramId
+                        client.bridgeLauncherService.openInstagram(targetId)
+                    }
+                }
+                is MessagesEvent.DialWhatsAppPhone -> {
+                    coroutineScope.launch {
+                        val phone = event.phone.ifBlank { whatsAppPhone.orEmpty() }
+                        if (phone.isNotBlank()) {
+                            client.bridgeLauncherService.dialPhone(phone)
+                        } else {
+                            client.bridgeLauncherService.launchWhatsAppApp()
+                        }
+                    }
+                }
             }
         }
 
@@ -394,6 +443,8 @@ class MessagesPresenter(
             dmUserStatus = roomInfo.dmUserStatus(),
             roomMemberModerationState = roomMemberModerationState,
             siblingRooms = siblingRooms,
+            whatsAppPhone = whatsAppPhone,
+            instagramId = instagramId,
             topBarSharedHistoryIcon = topBarSharedHistoryIcon,
             successorRoom = roomInfo.successorRoom,
             threads = Threads(

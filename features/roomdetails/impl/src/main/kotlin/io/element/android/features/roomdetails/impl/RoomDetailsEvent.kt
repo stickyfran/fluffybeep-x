@@ -20,4 +20,7 @@ sealed interface RoomDetailsEvent {
     data class UnlinkMergedRoom(val roomId: io.element.android.libraries.matrix.api.core.RoomId) : RoomDetailsEvent
     data object UnmergeAll : RoomDetailsEvent
     data class MergeWithRoom(val targetRoomId: io.element.android.libraries.matrix.api.core.RoomId) : RoomDetailsEvent
+    data class LaunchWhatsApp(val phone: String? = null) : RoomDetailsEvent
+    data class LaunchInstagram(val userOrId: String? = null) : RoomDetailsEvent
+    data class DialWhatsAppPhone(val phone: String) : RoomDetailsEvent
 }

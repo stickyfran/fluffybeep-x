@@ -55,6 +55,8 @@ import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.home.impl.components.HomeTopBar
 import io.element.android.features.home.impl.components.RoomListContentView
 import io.element.android.features.home.impl.components.RoomListMenuAction
+import io.element.android.features.home.impl.labels.LabelEditorBottomSheet
+import io.element.android.features.home.impl.labels.ManageLabelsBottomSheet
 import io.element.android.features.home.impl.model.RoomListRoomSummary
 import io.element.android.features.home.impl.roomlist.RoomListContextMenu
 import io.element.android.features.home.impl.roomlist.RoomListDeclineInviteMenu
@@ -139,6 +141,41 @@ fun HomeView(
                 },
                 onDismissRequest = {
                     state.eventSink(RoomListEvent.HideOrganizeInSpaces)
+                },
+            )
+        }
+        val manageLabels = state.manageLabels
+        if (manageLabels != null) {
+            ManageLabelsBottomSheet(
+                roomName = manageLabels.roomName,
+                roomId = manageLabels.roomId,
+                labels = manageLabels.labels,
+                mergedRoomCount = manageLabels.mergedRoomCount,
+                onToggleLabel = { labelId, isAssigned ->
+                    state.eventSink(RoomListEvent.ToggleLabelMembership(labelId, isAssigned))
+                },
+                onCreateLabelClick = {
+                    state.eventSink(RoomListEvent.ShowCreateLabel)
+                },
+                onEditLabelClick = { label ->
+                    state.eventSink(RoomListEvent.ShowEditLabel(label))
+                },
+                onDismissRequest = {
+                    state.eventSink(RoomListEvent.HideManageLabels)
+                },
+            )
+        }
+        if (state.isCreatingLabel || state.labelToEdit != null) {
+            LabelEditorBottomSheet(
+                labelToEdit = state.labelToEdit,
+                onSave = { title, emoji, isShownInInbox ->
+                    state.eventSink(RoomListEvent.SaveLabel(title, emoji, isShownInInbox))
+                },
+                onDelete = state.labelToEdit?.let { label ->
+                    { state.eventSink(RoomListEvent.DeleteLabel(label.id)) }
+                },
+                onDismissRequest = {
+                    state.eventSink(RoomListEvent.HideLabelEditor)
                 },
             )
         }

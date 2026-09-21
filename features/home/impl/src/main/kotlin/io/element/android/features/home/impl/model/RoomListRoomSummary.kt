@@ -46,6 +46,7 @@ data class RoomListRoomSummary(
     val isSpace: Boolean,
     val dmUserStatus: DisplayedStatus?,
     val networkBadges: ImmutableList<String> = persistentListOf(),
+    val labelEmojis: ImmutableList<String> = persistentListOf(),
 ) {
     val isHighlighted = userDefinedNotificationMode != RoomNotificationMode.MUTE &&
         (numberOfUnreadNotifications > 0 || numberOfUnreadMentions > 0) ||

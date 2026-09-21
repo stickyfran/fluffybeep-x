@@ -191,6 +191,19 @@ class RoomDetailsPresenter(
             }
         }
 
+        val whatsAppPhone by remember(mergedContact, siblingRooms, room.roomId) {
+            derivedStateOf {
+                client.bridgeLauncherService.extractWhatsAppPhone(room.roomId)
+                    ?: siblingRooms.firstNotNullOfOrNull { client.bridgeLauncherService.extractWhatsAppPhone(it.roomId) }
+            }
+        }
+        val instagramId by remember(mergedContact, siblingRooms, room.roomId) {
+            derivedStateOf {
+                client.bridgeLauncherService.extractInstagramId(room.roomId)
+                    ?: siblingRooms.firstNotNullOfOrNull { client.bridgeLauncherService.extractInstagramId(it.roomId) }
+            }
+        }
+
         fun handleEvent(event: RoomDetailsEvent) {
             when (event) {
                 is RoomDetailsEvent.LeaveRoom -> {
@@ -206,10 +219,14 @@ class RoomDetailsPresenter(
                         notificationSettingsService.unmuteRoom(room.roomId, isEncrypted, room.isDm())
                     }
                 }
-                is RoomDetailsEvent.SetFavorite -> scope.setFavorite(event.isFavorite)
                 is RoomDetailsEvent.CopyToClipboard -> {
-                    clipboardHelper.copyPlainText(event.text)
-                    snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_copied_to_clipboard))
+                    scope.launch {
+                        clipboardHelper.copyPlainText(event.text)
+                        snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_copied_to_clipboard))
+                    }
+                }
+                is RoomDetailsEvent.SetFavorite -> {
+                    scope.setFavorite(event.isFavorite)
                 }
                 is RoomDetailsEvent.MarkAsRead -> scope.markAsRead()
                 is RoomDetailsEvent.MarkAsUnread -> scope.markAsUnread()
@@ -244,6 +261,26 @@ class RoomDetailsPresenter(
                                 roomIds = listOf(room.roomId, event.targetRoomId),
                                 activeRoomId = room.roomId,
                             )
+                        }
+                    }
+                }
+                is RoomDetailsEvent.LaunchWhatsApp -> {
+                    scope.launch {
+                        client.bridgeLauncherService.openWhatsApp(event.phone ?: whatsAppPhone)
+                    }
+                }
+                is RoomDetailsEvent.LaunchInstagram -> {
+                    scope.launch {
+                        client.bridgeLauncherService.openInstagram(event.userOrId ?: instagramId)
+                    }
+                }
+                is RoomDetailsEvent.DialWhatsAppPhone -> {
+                    scope.launch {
+                        val phone = event.phone.ifBlank { whatsAppPhone.orEmpty() }
+                        if (phone.isNotBlank()) {
+                            client.bridgeLauncherService.dialPhone(phone)
+                        } else {
+                            client.bridgeLauncherService.launchWhatsAppApp()
                         }
                     }
                 }
@@ -294,6 +331,8 @@ class RoomDetailsPresenter(
             mergedContact = mergedContact,
             siblingRooms = siblingRooms,
             availableRoomsToMerge = availableRoomsToMerge,
+            whatsAppPhone = whatsAppPhone,
+            instagramId = instagramId,
             eventSink = ::handleEvent,
         )
     }

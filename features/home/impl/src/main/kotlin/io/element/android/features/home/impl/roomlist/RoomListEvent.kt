@@ -33,4 +33,12 @@ sealed interface RoomListEvent {
     data class ShowOrganizeInSpaces(val roomId: RoomId) : ContextMenuEvent
     data object HideOrganizeInSpaces : RoomListEvent
     data class ToggleSpaceMembership(val spaceId: RoomId, val isMember: Boolean) : RoomListEvent
+    data class ShowManageLabels(val roomId: RoomId, val roomName: String?) : ContextMenuEvent
+    data object HideManageLabels : RoomListEvent
+    data class ToggleLabelMembership(val labelId: String, val isAssigned: Boolean) : RoomListEvent
+    data object ShowCreateLabel : RoomListEvent
+    data class ShowEditLabel(val label: io.element.android.libraries.matrix.api.labels.RoomLabel) : RoomListEvent
+    data object HideLabelEditor : RoomListEvent
+    data class SaveLabel(val title: String, val emoji: String?, val isShownInInbox: Boolean) : RoomListEvent
+    data class DeleteLabel(val labelId: String) : RoomListEvent
 }

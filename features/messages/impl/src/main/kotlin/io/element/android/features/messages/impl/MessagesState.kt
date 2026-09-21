@@ -61,6 +61,8 @@ data class MessagesState(
     val dmUserStatus: DisplayedStatus?,
     val roomMemberModerationState: RoomMemberModerationState,
     val siblingRooms: ImmutableList<MergedRoomSummary> = persistentListOf(),
+    val whatsAppPhone: String? = null,
+    val instagramId: String? = null,
     /** Type of "shared history" icon to show in the top bar. */
     val topBarSharedHistoryIcon: SharedHistoryIcon,
     val successorRoom: SuccessorRoom?,

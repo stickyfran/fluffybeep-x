@@ -74,6 +74,10 @@ fun RoomListContextMenu(
                 eventSink(RoomListEvent.HideContextMenu)
                 onOrganizeInSpacesClick(contextMenu.roomId)
             },
+            onManageLabelsClick = {
+                eventSink(RoomListEvent.HideContextMenu)
+                eventSink(RoomListEvent.ShowManageLabels(contextMenu.roomId, contextMenu.roomName))
+            },
             onReportRoomClick = {
                 eventSink(RoomListEvent.HideContextMenu)
                 onReportRoomClick(contextMenu.roomId)
@@ -90,6 +94,7 @@ private fun RoomListModalBottomSheetContent(
     onLeaveRoomClick: () -> Unit,
     onFavoriteChange: (isFavorite: Boolean) -> Unit,
     onOrganizeInSpacesClick: () -> Unit,
+    onManageLabelsClick: () -> Unit,
     onRoomMarkReadClick: () -> Unit,
     onRoomMarkUnreadClick: () -> Unit,
     onReportRoomClick: () -> Unit,
@@ -108,56 +113,46 @@ private fun RoomListModalBottomSheetContent(
                 )
             }
         )
-        if (contextMenu.hasNewContent) {
-            ListItem(
-                content = {
-                    Text(
-                        text = stringResource(id = CommonStrings.action_mark_as_read),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                onClick = onRoomMarkReadClick,
-                leadingContent = ListItemContent.Icon(
-                    iconSource = IconSource.Vector(CompoundIcons.MarkAsRead())
-                ),
-            )
+        ListItem(
+            content = {
+                Text(
+                    text = stringResource(id = if (contextMenu.hasNewContent) R.string.screen_roomlist_mark_as_read else R.string.screen_roomlist_mark_as_unread),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            modifier = Modifier.clickable {
+                if (contextMenu.hasNewContent) {
+                    onRoomMarkReadClick()
+                } else {
+                    onRoomMarkUnreadClick()
+                }
+            },
+            leadingContent = ListItemContent.Icon(
+                iconSource = IconSource.Vector(
+                    if (contextMenu.hasNewContent) CompoundIcons.Check() else CompoundIcons.MarkAsUnread(),
+                )
+            ),
+        )
+        val (title, icon) = if (contextMenu.isFavorite) {
+            stringResource(id = CommonStrings.action_remove_from_favorites) to CompoundIcons.FavouriteSolid()
         } else {
-            ListItem(
-                content = {
-                    Text(
-                        text = stringResource(id = R.string.screen_roomlist_mark_as_unread),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                onClick = onRoomMarkUnreadClick,
-                leadingContent = ListItemContent.Icon(
-                    iconSource = IconSource.Vector(CompoundIcons.MarkAsUnread())
-                ),
-            )
-        }
-        val (textResId, icon) = if (contextMenu.isFavorite) {
-            CommonStrings.common_favourited to CompoundIcons.FavouriteSolid()
-        } else {
-            CommonStrings.common_favourite to CompoundIcons.Favourite()
+            stringResource(id = CommonStrings.action_favourite) to CompoundIcons.Favourite()
         }
         ListItem(
             content = {
                 Text(
-                    text = stringResource(id = textResId),
+                    text = title,
                     style = MaterialTheme.typography.bodyLarge,
                 )
+            },
+            modifier = Modifier.clickable {
+                onFavoriteChange(!contextMenu.isFavorite)
             },
             leadingContent = ListItemContent.Icon(
                 iconSource = IconSource.Vector(
                     icon,
                 )
             ),
-            trailingContent = ListItemContent.Switch(
-                checked = contextMenu.isFavorite,
-            ),
-            onClick = {
-                onFavoriteChange(!contextMenu.isFavorite)
-            },
         )
         ListItem(
             content = {
@@ -170,6 +165,20 @@ private fun RoomListModalBottomSheetContent(
             leadingContent = ListItemContent.Icon(
                 iconSource = IconSource.Vector(
                     CompoundIcons.Space(),
+                )
+            ),
+        )
+        ListItem(
+            content = {
+                Text(
+                    text = "Etiquetas",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            modifier = Modifier.clickable { onManageLabelsClick() },
+            leadingContent = ListItemContent.Icon(
+                iconSource = IconSource.Vector(
+                    CompoundIcons.PinSolid(),
                 )
             ),
         )

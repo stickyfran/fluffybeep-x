@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -331,6 +332,7 @@ fun RoomDetailsView(
                 }
             }
             ContactMergeSection(state = state)
+            BridgeLaunchersSection(state = state)
             OtherActionsSection(
                 dmOtherMemberDetailsState = state.dmOtherMemberDetailsState,
                 canReportRoom = state.canReportRoom,
@@ -1042,6 +1044,100 @@ private fun ContactMergeSection(
             },
             onDismiss = { showMergeDialog = false }
         )
+    }
+}
+
+@Composable
+private fun BridgeLaunchersSection(
+    state: RoomDetailsState,
+    modifier: Modifier = Modifier,
+) {
+    val phone = state.whatsAppPhone
+    val ig = state.instagramId
+    if (phone == null && ig == null) return
+
+    PreferenceCategory(
+        modifier = modifier,
+        title = "Redes vinculadas",
+    ) {
+        if (phone != null) {
+            ListItem(
+                content = {
+                    Text(
+                        text = "WhatsApp",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = phone,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ElementTheme.colors.textSecondary,
+                    )
+                },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(CompoundIcons.VoiceCallSolid())
+                ),
+                trailingContent = ListItemContent.Custom {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { state.eventSink(RoomDetailsEvent.DialWhatsAppPhone(phone)) },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                imageVector = CompoundIcons.VoiceCallSolid(),
+                                contentDescription = "Llamar por teléfono",
+                                tint = Color(0xFF25D366),
+                            )
+                        }
+                        IconButton(
+                            onClick = { state.eventSink(RoomDetailsEvent.LaunchWhatsApp(phone)) },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                imageVector = CompoundIcons.ChatSolid(),
+                                contentDescription = "Abrir WhatsApp",
+                                tint = Color(0xFF25D366),
+                            )
+                        }
+                    }
+                },
+                onClick = { state.eventSink(RoomDetailsEvent.LaunchWhatsApp(phone)) }
+            )
+        }
+        if (ig != null) {
+            ListItem(
+                content = {
+                    Text(
+                        text = "Instagram",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        text = "@$ig",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ElementTheme.colors.textSecondary,
+                    )
+                },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(CompoundIcons.TakePhoto())
+                ),
+                trailingContent = ListItemContent.Custom {
+                    IconButton(
+                        onClick = { state.eventSink(RoomDetailsEvent.LaunchInstagram(ig)) },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = CompoundIcons.TakePhoto(),
+                            contentDescription = "Abrir Instagram",
+                            tint = Color(0xFFE1306C),
+                        )
+                    }
+                },
+                onClick = { state.eventSink(RoomDetailsEvent.LaunchInstagram(ig)) }
+            )
+        }
     }
 }
 

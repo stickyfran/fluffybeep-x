@@ -125,4 +125,14 @@ object SessionMatrixBindingContainer {
     fun providesContactMergeService(matrixClient: MatrixClient): io.element.android.libraries.matrix.api.contactmerge.ContactMergeService {
         return matrixClient.contactMergeService
     }
+
+    @Provides
+    fun providesBridgeLauncherService(matrixClient: MatrixClient): io.element.android.libraries.matrix.api.bridgelauncher.BridgeLauncherService {
+        return matrixClient.bridgeLauncherService
+    }
+
+    @Provides
+    fun providesLabelService(matrixClient: MatrixClient): io.element.android.libraries.matrix.api.labels.LabelService {
+        return matrixClient.labelService
+    }
 }

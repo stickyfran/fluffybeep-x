@@ -52,9 +52,11 @@ import io.element.android.libraries.matrix.api.sync.SyncState
 import io.element.android.libraries.matrix.api.timeline.ReceiptType
 import io.element.android.libraries.matrix.test.A_ROOM_ID
 import io.element.android.libraries.matrix.test.A_ROOM_ID_2
+import io.element.android.libraries.matrix.api.labels.RoomLabel
 import io.element.android.libraries.matrix.test.A_ROOM_ID_3
 import io.element.android.libraries.matrix.test.A_SESSION_ID
 import io.element.android.libraries.matrix.test.FakeMatrixClient
+import io.element.android.libraries.matrix.test.labels.FakeLabelService
 import io.element.android.libraries.matrix.test.encryption.FakeEncryptionService
 import io.element.android.libraries.matrix.test.notificationsettings.FakeNotificationSettingsService
 import io.element.android.libraries.matrix.test.room.FakeBaseRoom
@@ -627,6 +629,78 @@ class RoomListPresenterTest {
             // Simulate service updating the value
             announcementService.emitAnnouncementsToShow(emptyList())
             assertThat(awaitItem().contentAsRooms().showNewNotificationSoundBanner).isFalse()
+        }
+    }
+
+    @Test
+    fun `present - handle ShowManageLabels, ToggleLabelMembership, and HideManageLabels`() = runTest {
+        val labelService = FakeLabelService()
+        val createdLabel = labelService.createLabel("Work", "💼").getOrThrow()
+        val matrixClient = FakeMatrixClient(
+            labelService = labelService,
+        )
+        val presenter = createRoomListPresenter(
+            client = matrixClient,
+        )
+        presenter.test {
+            skipItems(1)
+            val state = awaitItem()
+            assertThat(state.manageLabels).isNull()
+
+            // Open manage labels
+            state.eventSink(RoomListEvent.ShowManageLabels(A_ROOM_ID, "Test Room"))
+            val manageState = awaitItem()
+            assertThat(manageState.manageLabels).isNotNull()
+            assertThat(manageState.manageLabels?.roomId).isEqualTo(A_ROOM_ID)
+            assertThat(manageState.manageLabels?.roomName).isEqualTo("Test Room")
+            assertThat(manageState.manageLabels?.labels).hasSize(1)
+
+            // Toggle label
+            manageState.eventSink(RoomListEvent.ToggleLabelMembership(createdLabel.id, isAssigned = true))
+            val updatedManageState = awaitItem()
+            val updatedLabel = updatedManageState.manageLabels?.labels?.first()
+            assertThat(updatedLabel?.roomIds).contains(A_ROOM_ID)
+
+            // Dismiss
+            manageState.eventSink(RoomListEvent.HideManageLabels)
+            val dismissedState = awaitItem()
+            assertThat(dismissedState.manageLabels).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - hide room from inbox when room id is in hiddenFromInboxRoomIds`() = runTest {
+        val roomList = FakeDynamicRoomList(
+            loadingState = MutableStateFlow(RoomList.LoadingState.Loaded(2))
+        )
+        val roomListService = FakeRoomListService(
+            createRoomListLambda = { roomList }
+        )
+        val labelService = FakeLabelService()
+        labelService.setHiddenFromInboxRoomIds(setOf(A_ROOM_ID_2))
+        val matrixClient = FakeMatrixClient(
+            roomListService = roomListService,
+            labelService = labelService,
+        )
+        val presenter = createRoomListPresenter(
+            client = matrixClient,
+        )
+        presenter.test {
+            skipItems(1)
+            roomList.summaries.emit(
+                listOf(
+                    aRoomSummary(roomId = A_ROOM_ID, name = "Visible Room"),
+                    aRoomSummary(roomId = A_ROOM_ID_2, name = "Hidden Room"),
+                )
+            )
+            val withRoomsState = consumeItemsUntilPredicate { state ->
+                state.contentState is RoomListContentState.Rooms && state.contentAsRooms().summaries.isNotEmpty()
+            }.last()
+            val summaries = withRoomsState.contentAsRooms().summaries
+            assertThat(summaries).hasSize(1)
+            assertThat(summaries.first().roomId).isEqualTo(A_ROOM_ID)
+            cancelAndIgnoreRemainingEvents()
         }
     }
 

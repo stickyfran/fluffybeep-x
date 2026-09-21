@@ -60,6 +60,8 @@ data class RoomDetailsState(
     val mergedContact: MergedContact? = null,
     val siblingRooms: ImmutableList<MergedRoomSummary> = persistentListOf(),
     val availableRoomsToMerge: ImmutableList<SelectRoomInfo> = persistentListOf(),
+    val whatsAppPhone: String? = null,
+    val instagramId: String? = null,
     val eventSink: (RoomDetailsEvent) -> Unit
 ) {
     val roomBadges = buildList {

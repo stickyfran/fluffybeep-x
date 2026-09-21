@@ -53,6 +53,7 @@ import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.contactmerge.MergedContact
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.encryption.RecoveryState
+import io.element.android.libraries.matrix.api.labels.RoomLabel
 import io.element.android.libraries.matrix.api.roomlist.RoomList
 import io.element.android.libraries.matrix.api.roomlist.RoomListFilter
 import io.element.android.libraries.matrix.ui.safety.rememberHideInvitesAvatar
@@ -120,6 +121,10 @@ class RoomListPresenter(
         val contextMenu = remember { mutableStateOf<RoomListState.ContextMenu>(RoomListState.ContextMenu.Hidden) }
         val declineInviteMenu = remember { mutableStateOf<RoomListState.DeclineInviteMenu>(RoomListState.DeclineInviteMenu.Hidden) }
         val organizeInSpaces = remember { mutableStateOf<RoomListState.OrganizeInSpaces?>(null) }
+        val activeLabelsTarget = remember { mutableStateOf<ActiveLabelsTarget?>(null) }
+        val isCreatingLabel = remember { mutableStateOf(false) }
+        val labelToEdit = remember { mutableStateOf<RoomLabel?>(null) }
+        val allLabels by client.labelService.labels.collectAsState()
 
         fun handleEvent(event: RoomListEvent) {
             when (event) {
@@ -178,6 +183,84 @@ class RoomListPresenter(
                         }
                     }
                 }
+                is RoomListEvent.ShowManageLabels -> {
+                    contextMenu.value = RoomListState.ContextMenu.Hidden
+                    coroutineScope.launch {
+                        val mergedContact = client.contactMergeService.getMergedContactForRoom(event.roomId)
+                        val roomIds = mergedContact?.roomIds ?: listOf(event.roomId)
+                        val room = client.getRoom(event.roomId)
+                        val roomName = event.roomName ?: mergedContact?.displayName ?: room?.use { it.roomInfoFlow.value.name }
+                        activeLabelsTarget.value = ActiveLabelsTarget(
+                            roomId = event.roomId,
+                            roomName = roomName,
+                            mergedRoomCount = roomIds.size,
+                        )
+                    }
+                }
+                RoomListEvent.HideManageLabels -> {
+                    activeLabelsTarget.value = null
+                }
+                is RoomListEvent.ToggleLabelMembership -> {
+                    val current = activeLabelsTarget.value
+                    if (current != null) {
+                        coroutineScope.launch {
+                            val mergedContact = client.contactMergeService.getMergedContactForRoom(current.roomId)
+                            val roomIds = mergedContact?.roomIds ?: listOf(current.roomId)
+                            if (event.isAssigned) {
+                                client.labelService.addRoomsToLabel(event.labelId, roomIds)
+                            } else {
+                                client.labelService.removeRoomsFromLabel(event.labelId, roomIds)
+                            }
+                        }
+                    }
+                }
+                RoomListEvent.ShowCreateLabel -> {
+                    labelToEdit.value = null
+                    isCreatingLabel.value = true
+                }
+                is RoomListEvent.ShowEditLabel -> {
+                    labelToEdit.value = event.label
+                    isCreatingLabel.value = false
+                }
+                RoomListEvent.HideLabelEditor -> {
+                    isCreatingLabel.value = false
+                    labelToEdit.value = null
+                }
+                is RoomListEvent.SaveLabel -> {
+                    val toEdit = labelToEdit.value
+                    coroutineScope.launch {
+                        if (toEdit != null) {
+                            client.labelService.updateLabel(
+                                labelId = toEdit.id,
+                                title = event.title,
+                                emoji = event.emoji,
+                                isShownInInbox = event.isShownInInbox,
+                            )
+                        } else {
+                            val createdResult = client.labelService.createLabel(
+                                title = event.title,
+                                emoji = event.emoji,
+                                isShownInInbox = event.isShownInInbox,
+                            )
+                            val created = createdResult.getOrNull()
+                            val currentRoom = activeLabelsTarget.value
+                            if (currentRoom != null && created != null) {
+                                val mergedContact = client.contactMergeService.getMergedContactForRoom(currentRoom.roomId)
+                                val roomIds = mergedContact?.roomIds ?: listOf(currentRoom.roomId)
+                                client.labelService.addRoomsToLabel(created.id, roomIds)
+                            }
+                        }
+                        isCreatingLabel.value = false
+                        labelToEdit.value = null
+                    }
+                }
+                is RoomListEvent.DeleteLabel -> {
+                    coroutineScope.launch {
+                        client.labelService.deleteLabel(event.labelId)
+                        isCreatingLabel.value = false
+                        labelToEdit.value = null
+                    }
+                }
                 is RoomListEvent.LeaveRoom -> {
                     leaveRoomState.eventSink(LeaveRoomEvent.LeaveRoom(event.roomId, needsConfirmation = event.needsConfirmation))
                 }
@@ -212,10 +295,20 @@ class RoomListPresenter(
         }
 
         val contentState = roomListContentState(
-            securityBannerDismissed,
-            showNewNotificationSoundBanner,
-            showUnreadCount,
+            securityBannerDismissed = securityBannerDismissed,
+            showNewNotificationSoundBanner = showNewNotificationSoundBanner,
+            showUnreadCount = showUnreadCount,
+            isSpaceFilterActive = spaceFiltersState.selectedFilter() != null,
         )
+
+        val manageLabelsState = activeLabelsTarget.value?.let { target ->
+            RoomListState.ManageLabels(
+                roomId = target.roomId,
+                roomName = target.roomName,
+                labels = allLabels.toImmutableList(),
+                mergedRoomCount = target.mergedRoomCount,
+            )
+        }
 
         return RoomListState(
             contextMenu = contextMenu.value,
@@ -230,6 +323,9 @@ class RoomListPresenter(
             hideInvitesAvatars = hideInvitesAvatar,
             canReportRoom = canReportRoom,
             organizeInSpaces = organizeInSpaces.value,
+            manageLabels = manageLabelsState,
+            isCreatingLabel = isCreatingLabel.value,
+            labelToEdit = labelToEdit.value,
             eventSink = ::handleEvent,
         )
     }
@@ -274,11 +370,13 @@ class RoomListPresenter(
         securityBannerDismissed: Boolean,
         showNewNotificationSoundBanner: Boolean,
         showUnreadCount: Boolean,
+        isSpaceFilterActive: Boolean,
     ): RoomListContentState {
         val roomSummaries by produceState(initialValue = AsyncData.Loading()) {
             roomListDataSource.roomSummariesFlow.collect { value = AsyncData.Success(it) }
         }
         val mergedContacts by client.contactMergeService.mergedContacts.collectAsState(initial = emptyList())
+        val hiddenRoomIds by client.labelService.hiddenFromInboxRoomIds.collectAsState(initial = emptySet())
         val loadingState by roomListDataSource.loadingState.collectAsState()
         val showEmpty by remember {
             derivedStateOf {
@@ -292,10 +390,18 @@ class RoomListPresenter(
         }
         val seenRoomInvites by remember { seenInvitesStore.seenRoomIds() }.collectAsState(emptySet())
         val securityBannerState by rememberSecurityBannerState(securityBannerDismissed)
-        val processedSummaries = remember(roomSummaries, mergedContacts) {
+        val processedSummaries = remember(roomSummaries, mergedContacts, hiddenRoomIds, allLabels, isSpaceFilterActive) {
             val raw = roomSummaries.dataOrNull().orEmpty()
+            val filteredRaw = if (isSpaceFilterActive || hiddenRoomIds.isEmpty()) {
+                raw
+            } else {
+                raw.filter { summary -> summary.roomId !in hiddenRoomIds }
+            }
             if (mergedContacts.isEmpty()) {
-                raw.toImmutableList()
+                filteredRaw.map { summary ->
+                    val emojis = allLabels.filter { summary.roomId in it.roomIds }.mapNotNull { it.emoji }.toImmutableList()
+                    if (emojis.isNotEmpty()) summary.copy(labelEmojis = emojis) else summary
+                }.toImmutableList()
             } else {
                 val roomIdToMerge = HashMap<RoomId, MergedContact>()
                 for (mc in mergedContacts) {
@@ -304,21 +410,23 @@ class RoomListPresenter(
                     }
                 }
                 val handledMergeIds = HashSet<String>()
-                val result = ArrayList<RoomListRoomSummary>(raw.size)
+                val result = ArrayList<RoomListRoomSummary>(filteredRaw.size)
 
-                for (summary in raw) {
+                for (summary in filteredRaw) {
                     val mc = roomIdToMerge[summary.roomId]
                     if (mc == null) {
-                        result.add(summary)
+                        val emojis = allLabels.filter { summary.roomId in it.roomIds }.mapNotNull { it.emoji }.toImmutableList()
+                        result.add(if (emojis.isNotEmpty()) summary.copy(labelEmojis = emojis) else summary)
                     } else {
                         if (handledMergeIds.add(mc.id)) {
-                            val siblings = raw.filter { it.roomId in mc.roomIds }
+                            val siblings = filteredRaw.filter { it.roomId in mc.roomIds }
                             val primary = siblings.firstOrNull { it.roomId == mc.activeRoomId } ?: summary
                             val totalUnreadMessages = siblings.sumOf { it.numberOfUnreadMessages }
                             val totalUnreadNotifications = siblings.sumOf { it.numberOfUnreadNotifications }
                             val totalUnreadMentions = siblings.sumOf { it.numberOfUnreadMentions }
                             val isAnyMarkedUnread = siblings.any { it.isMarkedUnread }
                             val allBadges = siblings.flatMap { it.networkBadges }.distinct().toImmutableList()
+                            val emojis = allLabels.filter { label -> mc.roomIds.any { it in label.roomIds } }.mapNotNull { it.emoji }.distinct().toImmutableList()
 
                             result.add(
                                 primary.copy(
@@ -328,6 +436,7 @@ class RoomListPresenter(
                                     numberOfUnreadMentions = totalUnreadMentions,
                                     isMarkedUnread = isAnyMarkedUnread,
                                     networkBadges = if (allBadges.isNotEmpty()) allBadges else primary.networkBadges,
+                                    labelEmojis = emojis,
                                 )
                             )
                         }
@@ -412,3 +521,9 @@ class RoomListPresenter(
         }
     }
 }
+
+private data class ActiveLabelsTarget(
+    val roomId: RoomId,
+    val roomName: String?,
+    val mergedRoomCount: Int,
+)
