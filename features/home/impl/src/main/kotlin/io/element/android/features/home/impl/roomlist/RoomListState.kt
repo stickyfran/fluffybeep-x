@@ -38,6 +38,9 @@ data class RoomListState(
     val manageLabels: ManageLabels? = null,
     val isCreatingLabel: Boolean = false,
     val labelToEdit: io.element.android.libraries.matrix.api.labels.RoomLabel? = null,
+    val mergePicker: MergePicker? = null,
+    val activeLabelFilter: io.element.android.libraries.matrix.api.labels.RoomLabel? = null,
+    val allLabels: List<io.element.android.libraries.matrix.api.labels.RoomLabel> = emptyList(),
     val eventSink: (RoomListEvent) -> Unit,
 ) {
     val displayFilters = contentState is RoomListContentState.Rooms
@@ -56,6 +59,16 @@ data class RoomListState(
         val mergedRoomCount: Int = 1,
     )
 
+    /**
+     * Represents the state for the "Fusionar con..." bottom sheet picker,
+     * shown when the user wants to merge two rooms from the room list.
+     */
+    data class MergePicker(
+        val sourceRoomId: RoomId,
+        val sourceRoomName: String?,
+        val availableRooms: ImmutableList<io.element.android.features.home.impl.model.RoomListRoomSummary>,
+    )
+
     sealed interface ContextMenu {
         data object Hidden : ContextMenu
         data class Shown(
@@ -64,6 +77,7 @@ data class RoomListState(
             val isDm: Boolean,
             val isFavorite: Boolean,
             val hasNewContent: Boolean,
+            val isMerged: Boolean = false,
         ) : ContextMenu
     }
 

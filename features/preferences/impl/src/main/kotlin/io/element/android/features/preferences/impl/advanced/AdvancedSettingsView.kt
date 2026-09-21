@@ -116,6 +116,18 @@ fun AdvancedSettingsView(
             ),
             onClick = { state.eventSink(AdvancedSettingsEvent.SetSharePresenceEnabled(!state.isSharePresenceEnabled)) }
         )
+        ListItem(
+            content = {
+                Text(text = "Abrir WhatsApp en llamada entrante")
+            },
+            supportingContent = {
+                Text(text = "Abre automáticamente la aplicación de WhatsApp al recibir una llamada a través del puente.")
+            },
+            trailingContent = ListItemContent.Switch(
+                checked = state.isAutoOpenWhatsAppOnCallEnabled,
+            ),
+            onClick = { state.eventSink(AdvancedSettingsEvent.SetAutoOpenWhatsAppOnCallEnabled(!state.isAutoOpenWhatsAppOnCallEnabled)) }
+        )
         val compressImages = state.mediaOptimizationState?.shouldCompressImages
 
         when (state.mediaOptimizationState) {

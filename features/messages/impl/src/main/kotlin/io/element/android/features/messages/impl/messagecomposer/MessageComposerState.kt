@@ -29,5 +29,7 @@ data class MessageComposerState(
     val resolveMentionDisplay: (String, String) -> TextDisplay,
     val resolveAtRoomMentionDisplay: () -> TextDisplay,
     val slashCommandAction: AsyncAction<Unit>,
+    val showStickerPicker: Boolean = false,
+    val stickerPacks: ImmutableList<io.element.android.libraries.matrix.api.stickers.StickerPack> = kotlinx.collections.immutable.persistentListOf(),
     val eventSink: (MessageComposerEvent) -> Unit,
 )

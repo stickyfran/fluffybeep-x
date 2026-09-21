@@ -95,6 +95,9 @@ interface MatrixClient : ClientUrlContentFetcher {
     /** Gives access to room and contact labels. */
     val labelService: io.element.android.libraries.matrix.api.labels.LabelService
 
+    /** Gives access to sticker packs and sending stickers. */
+    val stickerService: io.element.android.libraries.matrix.api.stickers.StickerService
+
     /** Controls the sync loop of this session and exposes its state. */
     val syncService: SyncService
 

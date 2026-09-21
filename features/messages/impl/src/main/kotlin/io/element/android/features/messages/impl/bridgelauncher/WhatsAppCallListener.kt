@@ -26,7 +26,11 @@ class WhatsAppCallListener(
     /**
      * Checks if a timeline event represents an active incoming WhatsApp call.
      */
-    fun shouldAutoLaunch(event: EventTimelineItem): Boolean {
+    suspend fun shouldAutoLaunch(event: EventTimelineItem): Boolean {
+        if (!client.bridgeLauncherService.isAutoOpenWhatsAppOnCallEnabled()) {
+            return false
+        }
+
         val body = event.content.let {
             // Check text-based content
             val textContent = (it as? io.element.android.libraries.matrix.api.timeline.item.event.MessageContent)

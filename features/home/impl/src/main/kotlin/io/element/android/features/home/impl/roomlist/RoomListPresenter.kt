@@ -125,6 +125,8 @@ class RoomListPresenter(
         val isCreatingLabel = remember { mutableStateOf(false) }
         val labelToEdit = remember { mutableStateOf<RoomLabel?>(null) }
         val allLabels by client.labelService.labels.collectAsState()
+        val mergePicker = remember { mutableStateOf<RoomListState.MergePicker?>(null) }
+        val activeLabelFilter = remember { mutableStateOf<RoomLabel?>(null) }
 
         fun handleEvent(event: RoomListEvent) {
             when (event) {
@@ -261,6 +263,55 @@ class RoomListPresenter(
                         labelToEdit.value = null
                     }
                 }
+                is RoomListEvent.ShowMergePicker -> {
+                    contextMenu.value = RoomListState.ContextMenu.Hidden
+                    coroutineScope.launch {
+                        val mergedContact = client.contactMergeService.getMergedContactForRoom(event.roomId)
+                        val existingMergedIds: Set<RoomId> = mergedContact?.roomIds?.toSet() ?: setOf(event.roomId)
+                        // Load current summaries from the room list and exclude already-merged rooms and DMs
+                        val rawSummaries = (contentState as? RoomListContentState.Rooms)?.summaries.orEmpty()
+                        val available = rawSummaries.filter { s ->
+                            s.roomId !in existingMergedIds && !s.isDm
+                        }.toImmutableList()
+                        mergePicker.value = RoomListState.MergePicker(
+                            sourceRoomId = event.roomId,
+                            sourceRoomName = event.roomName,
+                            availableRooms = available,
+                        )
+                    }
+                }
+                RoomListEvent.HideMergePicker -> {
+                    mergePicker.value = null
+                }
+                is RoomListEvent.ExecuteMerge -> {
+                    coroutineScope.launch {
+                        val sourceRoom = client.getRoom(event.sourceRoomId)
+                        val displayName = sourceRoom?.use { it.roomInfoFlow.value.name } ?: ""
+                        val existingMerge = client.contactMergeService.getMergedContactForRoom(event.sourceRoomId)
+                        if (existingMerge != null) {
+                            client.contactMergeService.addRoomToMerge(existingMerge.id, event.targetRoomId)
+                        } else {
+                            client.contactMergeService.mergeRooms(
+                                displayName = displayName,
+                                roomIds = listOf(event.sourceRoomId, event.targetRoomId),
+                                activeRoomId = event.sourceRoomId,
+                            )
+                        }
+                        mergePicker.value = null
+                    }
+                }
+                is RoomListEvent.UnmergeFromList -> {
+                    coroutineScope.launch {
+                        val existingMerge = client.contactMergeService.getMergedContactForRoom(event.roomId)
+                        if (existingMerge != null) {
+                            client.contactMergeService.unmergeContact(existingMerge.id)
+                        }
+                        contextMenu.value = RoomListState.ContextMenu.Hidden
+                    }
+                }
+                is RoomListEvent.SelectLabelFilter -> {
+                    activeLabelFilter.value = event.label
+                }
                 is RoomListEvent.LeaveRoom -> {
                     leaveRoomState.eventSink(LeaveRoomEvent.LeaveRoom(event.roomId, needsConfirmation = event.needsConfirmation))
                 }
@@ -299,6 +350,7 @@ class RoomListPresenter(
             showNewNotificationSoundBanner = showNewNotificationSoundBanner,
             showUnreadCount = showUnreadCount,
             isSpaceFilterActive = spaceFiltersState.selectedFilter() != null,
+            activeLabelFilter = activeLabelFilter.value,
         )
 
         val manageLabelsState = activeLabelsTarget.value?.let { target ->
@@ -326,6 +378,9 @@ class RoomListPresenter(
             manageLabels = manageLabelsState,
             isCreatingLabel = isCreatingLabel.value,
             labelToEdit = labelToEdit.value,
+            mergePicker = mergePicker.value,
+            activeLabelFilter = activeLabelFilter.value,
+            allLabels = allLabels,
             eventSink = ::handleEvent,
         )
     }
@@ -371,6 +426,7 @@ class RoomListPresenter(
         showNewNotificationSoundBanner: Boolean,
         showUnreadCount: Boolean,
         isSpaceFilterActive: Boolean,
+        activeLabelFilter: RoomLabel? = null,
     ): RoomListContentState {
         val roomSummaries by produceState(initialValue = AsyncData.Loading()) {
             roomListDataSource.roomSummariesFlow.collect { value = AsyncData.Success(it) }
@@ -390,7 +446,7 @@ class RoomListPresenter(
         }
         val seenRoomInvites by remember { seenInvitesStore.seenRoomIds() }.collectAsState(emptySet())
         val securityBannerState by rememberSecurityBannerState(securityBannerDismissed)
-        val processedSummaries = remember(roomSummaries, mergedContacts, hiddenRoomIds, allLabels, isSpaceFilterActive) {
+        val processedSummaries = remember(roomSummaries, mergedContacts, hiddenRoomIds, allLabels, isSpaceFilterActive, activeLabelFilter) {
             val raw = roomSummaries.dataOrNull().orEmpty()
             val filteredRaw = if (isSpaceFilterActive || hiddenRoomIds.isEmpty()) {
                 raw
@@ -445,6 +501,12 @@ class RoomListPresenter(
                 result.toImmutableList()
             }
         }
+        // Filtrar por label activa si hay una seleccionada (paridad con FluffyBeep Flutter)
+        val labelFilteredSummaries = if (activeLabelFilter != null) {
+            processedSummaries.filter { s -> s.roomId in activeLabelFilter.roomIds }.toImmutableList()
+        } else {
+            processedSummaries
+        }
         return when {
             showEmpty -> RoomListContentState.Empty(
                 securityBannerState = securityBannerState,
@@ -459,7 +521,7 @@ class RoomListPresenter(
                     showUnreadCount = showUnreadCount,
                     fullScreenIntentPermissionsState = fullScreenIntentPermissionsPresenter.present(),
                     batteryOptimizationState = batteryOptimizationPresenter.present(),
-                    summaries = processedSummaries,
+                    summaries = labelFilteredSummaries,
                     seenRoomInvites = seenRoomInvites.toImmutableSet(),
                 )
             }
@@ -468,12 +530,14 @@ class RoomListPresenter(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun CoroutineScope.showContextMenu(event: RoomListEvent.ShowContextMenu, contextMenuState: MutableState<RoomListState.ContextMenu>) = launch {
+        val isMerged = client.contactMergeService.getMergedContactForRoom(event.roomSummary.roomId) != null
         val initialState = RoomListState.ContextMenu.Shown(
             roomId = event.roomSummary.roomId,
             roomName = event.roomSummary.name,
             isDm = event.roomSummary.isDm,
             isFavorite = event.roomSummary.isFavorite,
             hasNewContent = event.roomSummary.hasNewContent,
+            isMerged = isMerged,
         )
         contextMenuState.value = initialState
 

@@ -145,6 +145,7 @@ class MessageComposerPresenter(
     private val featureFlagService: FeatureFlagService,
     private val contentScannerService: ContentScannerService,
     private val contentValidationCache: EventContentValidationCache,
+    private val stickerService: io.element.android.libraries.matrix.api.stickers.StickerService,
 ) : Presenter<MessageComposerState> {
     @AssistedFactory
     interface Factory {
@@ -214,6 +215,12 @@ class MessageComposerPresenter(
             mutableStateOf(false)
         }
         var showAttachmentSourcePicker: Boolean by remember { mutableStateOf(false) }
+        var showStickerPicker: Boolean by remember { mutableStateOf(false) }
+        val stickerPacks by androidx.compose.runtime.produceState(persistentListOf<io.element.android.libraries.matrix.api.stickers.StickerPack>(), showStickerPicker) {
+            if (showStickerPicker) {
+                value = stickerService.getStickerPacks(room.roomId)
+            }
+        }
 
         val sendTypingNotifications by remember {
             sessionPreferencesStore.isSendTypingNotificationsEnabled()
@@ -349,6 +356,18 @@ class MessageComposerPresenter(
                     showAttachmentSourcePicker = false
                     // Navigation to the create poll screen is done at the view layer
                 }
+                MessageComposerEvent.PickAttachmentSource.ShowStickers -> {
+                    showAttachmentSourcePicker = false
+                    showStickerPicker = true
+                }
+                MessageComposerEvent.DismissStickerPicker -> {
+                    showStickerPicker = false
+                }
+                is MessageComposerEvent.SendSticker -> {
+                    localCoroutineScope.launch {
+                        stickerService.sendSticker(room.roomId, event.sticker)
+                    }
+                }
                 is MessageComposerEvent.ToggleTextFormatting -> {
                     showAttachmentSourcePicker = false
                     localCoroutineScope.toggleTextFormatting(event.enabled, markdownTextEditorState, richTextEditorState)
@@ -436,6 +455,8 @@ class MessageComposerPresenter(
             resolveMentionDisplay = resolveMentionDisplay,
             resolveAtRoomMentionDisplay = resolveAtRoomMentionDisplay,
             slashCommandAction = slashCommandAction.value,
+            showStickerPicker = showStickerPicker,
+            stickerPacks = stickerPacks,
             eventSink = ::handleEvent,
         )
     }

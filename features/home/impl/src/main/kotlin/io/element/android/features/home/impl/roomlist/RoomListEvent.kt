@@ -41,4 +41,13 @@ sealed interface RoomListEvent {
     data object HideLabelEditor : RoomListEvent
     data class SaveLabel(val title: String, val emoji: String?, val isShownInInbox: Boolean) : RoomListEvent
     data class DeleteLabel(val labelId: String) : RoomListEvent
+
+    // Merge events — permite fusionar/desfusionar desde el context menu de la lista
+    data class ShowMergePicker(val roomId: RoomId, val roomName: String?) : ContextMenuEvent
+    data object HideMergePicker : RoomListEvent
+    data class ExecuteMerge(val sourceRoomId: RoomId, val targetRoomId: RoomId) : RoomListEvent
+    data class UnmergeFromList(val roomId: RoomId) : ContextMenuEvent
+
+    // Label filter — selecciona/limpia filtro de label activo en la barra de chips
+    data class SelectLabelFilter(val label: io.element.android.libraries.matrix.api.labels.RoomLabel?) : RoomListEvent
 }

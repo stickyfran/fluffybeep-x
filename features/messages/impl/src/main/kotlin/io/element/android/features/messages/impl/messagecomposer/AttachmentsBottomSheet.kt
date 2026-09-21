@@ -141,6 +141,13 @@ private fun AttachmentSourcePickerMenu(
             leadingContent = ListItemContent.Icon(IconSource.Vector(CompoundIcons.Polls())),
             content = { Text(stringResource(R.string.screen_room_attachment_source_poll)) },
         )
+        ListItem(
+            modifier = Modifier.clickable {
+                state.eventSink(MessageComposerEvent.PickAttachmentSource.ShowStickers)
+            },
+            leadingContent = ListItemContent.Icon(IconSource.Vector(CompoundIcons.Reaction())),
+            content = { Text("Stickers") },
+        )
         if (enableTextFormatting) {
             ListItem(
                 modifier = Modifier.clickable { state.eventSink(MessageComposerEvent.ToggleTextFormatting(enabled = true)) },

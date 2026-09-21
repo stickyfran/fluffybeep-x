@@ -135,4 +135,9 @@ object SessionMatrixBindingContainer {
     fun providesLabelService(matrixClient: MatrixClient): io.element.android.libraries.matrix.api.labels.LabelService {
         return matrixClient.labelService
     }
+
+    @Provides
+    fun providesStickerService(matrixClient: MatrixClient): io.element.android.libraries.matrix.api.stickers.StickerService {
+        return matrixClient.stickerService
+    }
 }

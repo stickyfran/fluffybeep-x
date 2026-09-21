@@ -21,4 +21,5 @@ sealed interface AdvancedSettingsEvent {
     data class SetTimelineMediaPreviewValue(val value: MediaPreviewValue) : AdvancedSettingsEvent
     data class SetHideInviteAvatars(val value: Boolean) : AdvancedSettingsEvent
     data class SetLiveLocationMinimumDistanceUpdate(val value: Int) : AdvancedSettingsEvent
+    data class SetAutoOpenWhatsAppOnCallEnabled(val enabled: Boolean) : AdvancedSettingsEvent
 }

@@ -46,6 +46,9 @@ class AdvancedSettingsPresenter(
         val isSharePresenceEnabled by remember {
             sessionPreferencesStore.isSharePresenceEnabled()
         }.collectAsState(initial = true)
+        val isAutoOpenWhatsAppOnCallEnabled by remember {
+            sessionPreferencesStore.isAutoOpenWhatsAppOnCallEnabled()
+        }.collectAsState(initial = true)
         val isBlackThemeAllowed by remember {
             featureFlagService.isFeatureEnabledFlow(FeatureFlags.AllowBlackTheme)
         }.collectAsState(initial = false)
@@ -130,6 +133,9 @@ class AdvancedSettingsPresenter(
                 is AdvancedSettingsEvent.SetVideoUploadQuality -> sessionCoroutineScope.launch {
                     sessionPreferencesStore.setVideoCompressionPreset(event.videoPreset)
                 }
+                is AdvancedSettingsEvent.SetAutoOpenWhatsAppOnCallEnabled -> sessionCoroutineScope.launch {
+                    sessionPreferencesStore.setAutoOpenWhatsAppOnCallEnabled(event.enabled)
+                }
             }
         }
 
@@ -141,6 +147,7 @@ class AdvancedSettingsPresenter(
             availableThemeOptions = availableThemeOptions,
             mediaPreviewConfigState = mediaPreviewConfigState,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
+            isAutoOpenWhatsAppOnCallEnabled = isAutoOpenWhatsAppOnCallEnabled,
             eventSink = ::handleEvent,
         )
     }

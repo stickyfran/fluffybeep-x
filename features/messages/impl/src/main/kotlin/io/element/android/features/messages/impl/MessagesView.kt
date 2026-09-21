@@ -82,6 +82,7 @@ import io.element.android.features.messages.impl.messagecomposer.AttachmentsBott
 import io.element.android.features.messages.impl.messagecomposer.DisabledComposerView
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerView
+import io.element.android.features.messages.impl.stickers.StickerPickerBottomSheet
 import io.element.android.features.messages.impl.messagecomposer.suggestions.SuggestionsPickerView
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerView
@@ -601,6 +602,18 @@ private fun MessagesViewContent(
             onCreatePollClick = onCreatePollClick,
             enableTextFormatting = state.enableTextFormatting,
         )
+
+        if (state.composerState.showStickerPicker) {
+            StickerPickerBottomSheet(
+                packs = state.composerState.stickerPacks,
+                onStickerSelected = { sticker ->
+                    state.composerState.eventSink(MessageComposerEvent.SendSticker(sticker))
+                },
+                onDismissRequest = {
+                    state.composerState.eventSink(MessageComposerEvent.DismissStickerPicker)
+                },
+            )
+        }
 
         if (state.voiceMessageComposerState.showPermissionRationaleDialog) {
             VoiceMessagePermissionRationaleDialog(

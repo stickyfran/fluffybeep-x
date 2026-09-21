@@ -263,6 +263,12 @@ class RustMatrixClient(
         )
     }
 
+    override val stickerService: io.element.android.libraries.matrix.api.stickers.StickerService by lazy {
+        io.element.android.libraries.matrix.impl.stickers.DefaultStickerService(
+            client = this,
+        )
+    }
+
     override val ownBeaconInfoUpdates = mxCallbackFlow {
         val listener = object : BeaconInfoListener {
             override fun onUpdate(update: BeaconInfoUpdate) {

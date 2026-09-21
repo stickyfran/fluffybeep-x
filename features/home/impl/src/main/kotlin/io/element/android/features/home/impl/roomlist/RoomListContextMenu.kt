@@ -78,6 +78,14 @@ fun RoomListContextMenu(
                 eventSink(RoomListEvent.HideContextMenu)
                 eventSink(RoomListEvent.ShowManageLabels(contextMenu.roomId, contextMenu.roomName))
             },
+            onMergeClick = {
+                eventSink(RoomListEvent.HideContextMenu)
+                eventSink(RoomListEvent.ShowMergePicker(contextMenu.roomId, contextMenu.roomName))
+            },
+            onUnmergeClick = {
+                eventSink(RoomListEvent.HideContextMenu)
+                eventSink(RoomListEvent.UnmergeFromList(contextMenu.roomId))
+            },
             onReportRoomClick = {
                 eventSink(RoomListEvent.HideContextMenu)
                 onReportRoomClick(contextMenu.roomId)
@@ -95,6 +103,8 @@ private fun RoomListModalBottomSheetContent(
     onFavoriteChange: (isFavorite: Boolean) -> Unit,
     onOrganizeInSpacesClick: () -> Unit,
     onManageLabelsClick: () -> Unit,
+    onMergeClick: () -> Unit,
+    onUnmergeClick: () -> Unit,
     onRoomMarkReadClick: () -> Unit,
     onRoomMarkUnreadClick: () -> Unit,
     onReportRoomClick: () -> Unit,
@@ -182,6 +192,38 @@ private fun RoomListModalBottomSheetContent(
                 )
             ),
         )
+        // Fusionar con... / Desfusionar
+        if (contextMenu.isMerged) {
+            ListItem(
+                content = {
+                    Text(
+                        text = "Desfusionar",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                modifier = Modifier.clickable { onUnmergeClick() },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(
+                        CompoundIcons.Close(),
+                    )
+                ),
+            )
+        } else {
+            ListItem(
+                content = {
+                    Text(
+                        text = "Fusionar con...",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                modifier = Modifier.clickable { onMergeClick() },
+                leadingContent = ListItemContent.Icon(
+                    iconSource = IconSource.Vector(
+                        CompoundIcons.Link(),
+                    )
+                ),
+            )
+        }
         ListItem(
             content = {
                 Text(
@@ -224,6 +266,7 @@ private fun RoomListModalBottomSheetContent(
         )
     }
 }
+
 
 @PreviewsDayNight
 @Composable

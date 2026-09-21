@@ -57,6 +57,7 @@ import io.element.android.features.home.impl.components.RoomListContentView
 import io.element.android.features.home.impl.components.RoomListMenuAction
 import io.element.android.features.home.impl.labels.LabelEditorBottomSheet
 import io.element.android.features.home.impl.labels.ManageLabelsBottomSheet
+import io.element.android.features.home.impl.merge.MergeRoomPickerBottomSheet
 import io.element.android.features.home.impl.model.RoomListRoomSummary
 import io.element.android.features.home.impl.roomlist.RoomListContextMenu
 import io.element.android.features.home.impl.roomlist.RoomListDeclineInviteMenu
@@ -176,6 +177,19 @@ fun HomeView(
                 },
                 onDismissRequest = {
                     state.eventSink(RoomListEvent.HideLabelEditor)
+                },
+            )
+        }
+        val mergePicker = state.mergePicker
+        if (mergePicker != null) {
+            MergeRoomPickerBottomSheet(
+                sourceRoomName = mergePicker.sourceRoomName,
+                availableRooms = mergePicker.availableRooms,
+                onRoomSelected = { targetRoomId ->
+                    state.eventSink(RoomListEvent.ExecuteMerge(mergePicker.sourceRoomId, targetRoomId))
+                },
+                onDismissRequest = {
+                    state.eventSink(RoomListEvent.HideMergePicker)
                 },
             )
         }
@@ -306,6 +320,8 @@ private fun HomeScaffold(
                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars),
                 currentHomeNavigationBarItem = state.currentHomeNavigationBarItem,
                 spaceFiltersState = roomListState.spaceFiltersState,
+                allLabels = roomListState.allLabels,
+                activeLabelFilter = roomListState.activeLabelFilter,
                 onSelectAllChats = {
                     if (state.currentHomeNavigationBarItem != HomeNavigationBarItem.Chats) {
                         state.eventSink(HomeEvent.SelectHomeNavigationBarItem(HomeNavigationBarItem.Chats))
@@ -313,7 +329,11 @@ private fun HomeScaffold(
                     val spaceFiltersState = roomListState.spaceFiltersState
                     if (spaceFiltersState is SpaceFiltersState.Selected) {
                         spaceFiltersState.eventSink(SpaceFiltersEvent.Selected.ClearSelection)
-                    } else if (state.currentHomeNavigationBarItem == HomeNavigationBarItem.Chats) {
+                    }
+                    if (roomListState.activeLabelFilter != null) {
+                        roomListState.eventSink(RoomListEvent.SelectLabelFilter(null))
+                    }
+                    if (state.currentHomeNavigationBarItem == HomeNavigationBarItem.Chats) {
                         coroutineScope.launch {
                             if (roomsLazyListState.firstVisibleItemIndex > 10) {
                                 roomsLazyListState.scrollToItem(10)
@@ -366,6 +386,9 @@ private fun HomeScaffold(
                     } else {
                         state.eventSink(HomeEvent.SelectHomeNavigationBarItem(HomeNavigationBarItem.Spaces))
                     }
+                },
+                onSelectLabel = { label ->
+                    roomListState.eventSink(RoomListEvent.SelectLabelFilter(label))
                 },
                 floatingActionButton = {
                     when (state.currentHomeNavigationBarItem) {
@@ -456,15 +479,18 @@ private fun HomeFloatingActionButton(
 private fun HomeBottomBar(
     currentHomeNavigationBarItem: HomeNavigationBarItem,
     spaceFiltersState: SpaceFiltersState,
+    allLabels: List<io.element.android.libraries.matrix.api.labels.RoomLabel>,
+    activeLabelFilter: io.element.android.libraries.matrix.api.labels.RoomLabel?,
     onSelectAllChats: () -> Unit,
     onSelectSpace: (SpaceServiceFilter) -> Unit,
     onSelectSpacesTab: () -> Unit,
+    onSelectLabel: (io.element.android.libraries.matrix.api.labels.RoomLabel?) -> Unit,
     modifier: Modifier = Modifier,
     floatingActionButton: (@Composable () -> Unit)?,
 ) {
     val availableFilters = spaceFiltersState.quickBarFilters()
     val isAllChatsSelected = currentHomeNavigationBarItem == HomeNavigationBarItem.Chats &&
-        spaceFiltersState !is SpaceFiltersState.Selected
+        spaceFiltersState !is SpaceFiltersState.Selected && activeLabelFilter == null
 
     HorizontalFloatingToolbar(
         floatingActionButton = floatingActionButton,
@@ -521,7 +547,38 @@ private fun HomeBottomBar(
             }
         }
 
-        // 3. Spaces explore/management tab
+        // 3. Label filter chips — paridad con FluffyBeep Flutter (chat_list_body.dart líneas 346-390)
+        for (label in allLabels) {
+            HorizontalFloatingToolbarSeparator()
+            val isLabelSelected = activeLabelFilter?.id == label.id
+            val labelDisplay = buildString {
+                if (label.emoji != null) {
+                    append(label.emoji)
+                    append(" ")
+                }
+                append(label.title)
+            }
+            HorizontalFloatingToolbarItem(
+                iconContent = {
+                    Text(
+                        text = label.emoji ?: "🏷",
+                        style = io.element.android.compound.theme.ElementTheme.typography.fontBodySmRegular,
+                    )
+                },
+                tooltipLabel = labelDisplay,
+                isSelected = isLabelSelected,
+                onClick = {
+                    // Si ya está seleccionado, limpia el filtro. Si no, selecciona.
+                    onSelectLabel(if (isLabelSelected) null else label)
+                },
+                onLongClick = {
+                    // Long-press siempre limpia el filtro de label
+                    onSelectLabel(null)
+                },
+            )
+        }
+
+        // 4. Spaces explore/management tab
         HorizontalFloatingToolbarSeparator()
         val isSpacesTabSelected = currentHomeNavigationBarItem == HomeNavigationBarItem.Spaces
         HorizontalFloatingToolbarItem(

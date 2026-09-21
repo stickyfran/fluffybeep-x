@@ -22,6 +22,7 @@ class InMemorySessionPreferencesStore(
     isSessionVerificationSkipped: Boolean = false,
     doesCompressMedia: Boolean = true,
     videoCompressionPreset: VideoCompressionPreset = VideoCompressionPreset.STANDARD,
+    isAutoOpenWhatsAppOnCallEnabled: Boolean = true,
 ) : SessionPreferencesStore {
     private val isSharePresenceEnabled = MutableStateFlow(isSharePresenceEnabled)
     private val isSendPublicReadReceiptsEnabled = MutableStateFlow(isSendPublicReadReceiptsEnabled)
@@ -31,6 +32,7 @@ class InMemorySessionPreferencesStore(
     private val isSessionVerificationSkipped = MutableStateFlow(isSessionVerificationSkipped)
     private val doesCompressMedia = MutableStateFlow(doesCompressMedia)
     private val videoCompressionPreset = MutableStateFlow(videoCompressionPreset)
+    private val isAutoOpenWhatsAppOnCallEnabled = MutableStateFlow(isAutoOpenWhatsAppOnCallEnabled)
     var clearCallCount = 0
         private set
 
@@ -82,6 +84,14 @@ class InMemorySessionPreferencesStore(
 
     override fun getVideoCompressionPreset(): Flow<VideoCompressionPreset> {
         return videoCompressionPreset
+    }
+
+    override suspend fun setAutoOpenWhatsAppOnCallEnabled(enabled: Boolean) {
+        isAutoOpenWhatsAppOnCallEnabled.value = enabled
+    }
+
+    override fun isAutoOpenWhatsAppOnCallEnabled(): Flow<Boolean> {
+        return isAutoOpenWhatsAppOnCallEnabled
     }
 
     override suspend fun clear() {

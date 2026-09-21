@@ -251,7 +251,7 @@ class MessagesPresenter(
                 val body = (latestEvent.content as? TimelineItemTextBasedContent)?.body
                 if (body?.contains("Incoming call. Use the WhatsApp app to answer.") == true) {
                     val age = System.currentTimeMillis() - latestEvent.sentTimeMillis
-                    if (age in 0..45_000L) {
+                    if (age in 0..45_000L && client.bridgeLauncherService.isAutoOpenWhatsAppOnCallEnabled()) {
                         client.bridgeLauncherService.launchWhatsAppApp()
                     }
                 }

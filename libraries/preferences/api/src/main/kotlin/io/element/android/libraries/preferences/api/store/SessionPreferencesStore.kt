@@ -81,6 +81,14 @@ interface SessionPreferencesStore {
     /** The video compression preset; defaults to [VideoCompressionPreset.STANDARD], including when the stored value is unreadable. */
     fun getVideoCompressionPreset(): Flow<VideoCompressionPreset>
 
+    /**
+     * @param enabled true to automatically launch WhatsApp when an incoming bridge call is detected.
+     */
+    suspend fun setAutoOpenWhatsAppOnCallEnabled(enabled: Boolean)
+
+    /** Whether incoming WhatsApp bridge calls automatically open the WhatsApp application; defaults to `true`. */
+    fun isAutoOpenWhatsAppOnCallEnabled(): Flow<Boolean>
+
     /** Erases every preference of this session, so they all fall back to their defaults. */
     suspend fun clear()
 }

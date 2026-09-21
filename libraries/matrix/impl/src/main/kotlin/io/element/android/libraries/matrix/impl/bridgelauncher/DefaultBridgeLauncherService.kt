@@ -168,16 +168,35 @@ class DefaultBridgeLauncherService(
         Settings.canDrawOverlays(targetContext)
     }
 
-    override suspend fun requestOverlayPermission(): Boolean = withContext(Dispatchers.IO) {
-        val targetContext = context ?: return@withContext false
-        runCatching {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:${targetContext.packageName}")
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            targetContext.startActivity(intent)
-            true
-        }.getOrDefault(false)
+    override suspend fun requestOverlayPermission(): Boolean {
+        val ctx = context ?: return false
+        return withContext(Dispatchers.Main) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:${ctx.packageName}"),
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                ctx.startActivity(intent)
+                true
+            } catch (e: Exception) {
+                Timber.e(e, "BridgeLauncher: Failed to launch overlay settings")
+                false
+            }
+        }
+    }
+
+    private val prefs by lazy {
+        context?.getSharedPreferences("fluffybeep_bridge_launcher", Context.MODE_PRIVATE)
+    }
+
+    override suspend fun isAutoOpenWhatsAppOnCallEnabled(): Boolean {
+        return prefs?.getBoolean("auto_open_wa_on_call", true) ?: true
+    }
+
+    override suspend fun setAutoOpenWhatsAppOnCallEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean("auto_open_wa_on_call", enabled)?.apply()
     }
 
     private fun isPackageInstalled(pkg: String): Boolean = runCatching {

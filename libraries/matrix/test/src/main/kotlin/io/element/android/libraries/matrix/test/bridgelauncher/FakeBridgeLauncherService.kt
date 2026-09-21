@@ -14,6 +14,7 @@ class FakeBridgeLauncherService(
     private val waPhoneByRoom: Map<RoomId, String> = emptyMap(),
     private val igIdByRoom: Map<RoomId, String> = emptyMap(),
     var canDrawOverlaysResult: Boolean = true,
+    var isAutoOpenWhatsAppOnCallEnabledResult: Boolean = true,
 ) : BridgeLauncherService {
 
     val openWhatsAppCalls = mutableListOf<String?>()
@@ -48,4 +49,10 @@ class FakeBridgeLauncherService(
     override suspend fun canDrawOverlays(): Boolean = canDrawOverlaysResult
 
     override suspend fun requestOverlayPermission(): Boolean = true
+
+    override suspend fun isAutoOpenWhatsAppOnCallEnabled(): Boolean = isAutoOpenWhatsAppOnCallEnabledResult
+
+    override suspend fun setAutoOpenWhatsAppOnCallEnabled(enabled: Boolean) {
+        isAutoOpenWhatsAppOnCallEnabledResult = enabled
+    }
 }

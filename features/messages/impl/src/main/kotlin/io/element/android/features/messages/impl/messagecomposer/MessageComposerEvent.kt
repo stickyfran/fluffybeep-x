@@ -28,6 +28,7 @@ sealed interface MessageComposerEvent {
         data object VideoFromCamera : PickAttachmentSource
         data object Location : PickAttachmentSource
         data object Poll : PickAttachmentSource
+        data object ShowStickers : PickAttachmentSource
     }
 
     data class ToggleTextFormatting(val enabled: Boolean) : MessageComposerEvent
@@ -37,4 +38,6 @@ sealed interface MessageComposerEvent {
     data class InsertSuggestion(val resolvedSuggestion: ResolvedSuggestion) : MessageComposerEvent
     data object SaveDraft : MessageComposerEvent
     data object ClearSlashError : MessageComposerEvent
+    data object DismissStickerPicker : MessageComposerEvent
+    data class SendSticker(val sticker: io.element.android.libraries.matrix.api.stickers.StickerItem) : MessageComposerEvent
 }

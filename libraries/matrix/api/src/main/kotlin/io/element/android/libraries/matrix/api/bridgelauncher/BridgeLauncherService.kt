@@ -57,4 +57,14 @@ interface BridgeLauncherService {
      * Opens system settings to request overlay permission.
      */
     suspend fun requestOverlayPermission(): Boolean
+
+    /**
+     * Whether incoming WhatsApp calls should automatically open the WhatsApp application.
+     */
+    suspend fun isAutoOpenWhatsAppOnCallEnabled(): Boolean
+
+    /**
+     * Sets whether incoming WhatsApp calls should automatically open the WhatsApp application.
+     */
+    suspend fun setAutoOpenWhatsAppOnCallEnabled(enabled: Boolean)
 }

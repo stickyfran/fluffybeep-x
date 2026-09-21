@@ -324,6 +324,7 @@ class MessageComposerPresenterSlashCommandTest {
         featureFlagService = featureFlagService,
         contentScannerService = { _, _ -> },
         contentValidationCache = InMemoryEventContentValidationCache(),
+        stickerService = io.element.android.libraries.matrix.test.stickers.FakeStickerService(),
     ).apply {
         isTesting = true
         showTextFormatting = isRichTextEditorEnabled
