@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.home.impl.model.RoomListRoomSummary
 import io.element.android.libraries.designsystem.components.avatar.Avatar
+import io.element.android.libraries.designsystem.components.avatar.AvatarType
 import io.element.android.libraries.designsystem.theme.components.ModalBottomSheet
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.utils.lazyColumnContentPadding
@@ -104,7 +105,17 @@ private fun MergeRoomItem(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Avatar(avatarData = room.avatarData)
+        Avatar(
+            avatarData = room.avatarData,
+            avatarType = if (room.isSpace) {
+                AvatarType.Space(isTombstoned = room.isTombstoned)
+            } else {
+                AvatarType.Room(
+                    heroes = room.heroes,
+                    isTombstoned = room.isTombstoned,
+                )
+            },
+        )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

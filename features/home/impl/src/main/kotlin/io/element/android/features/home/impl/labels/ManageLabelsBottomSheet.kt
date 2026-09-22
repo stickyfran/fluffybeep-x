@@ -30,6 +30,7 @@ import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.libraries.designsystem.theme.components.Button
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.IconButton
+import io.element.android.libraries.designsystem.theme.components.IconSource
 import io.element.android.libraries.designsystem.theme.components.ModalBottomSheet
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.utils.scaffoldScrollableContentInsets
@@ -166,12 +167,7 @@ fun ManageLabelsBottomSheet(
                 Button(
                     text = "Nueva etiqueta",
                     onClick = onCreateLabelClick,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = CompoundIcons.Plus(),
-                            contentDescription = null,
-                        )
-                    },
+                    leadingIcon = IconSource.Vector(CompoundIcons.Plus()),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
