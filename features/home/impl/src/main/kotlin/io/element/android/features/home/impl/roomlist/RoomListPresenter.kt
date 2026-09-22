@@ -231,6 +231,7 @@ class RoomListPresenter(
                 }
                 is RoomListEvent.SaveLabel -> {
                     val toEdit = labelToEdit.value
+                    val targetSnapshot = activeLabelsTarget.value
                     coroutineScope.launch {
                         if (toEdit != null) {
                             client.labelService.updateLabel(
@@ -246,10 +247,9 @@ class RoomListPresenter(
                                 isShownInInbox = event.isShownInInbox,
                             )
                             val created = createdResult.getOrNull()
-                            val currentRoom = activeLabelsTarget.value
-                            if (currentRoom != null && created != null) {
-                                val mergedContact = client.contactMergeService.getMergedContactForRoom(currentRoom.roomId)
-                                val roomIds = mergedContact?.roomIds ?: listOf(currentRoom.roomId)
+                            if (targetSnapshot != null && created != null) {
+                                val mergedContact = client.contactMergeService.getMergedContactForRoom(targetSnapshot.roomId)
+                                val roomIds = mergedContact?.roomIds ?: listOf(targetSnapshot.roomId)
                                 client.labelService.addRoomsToLabel(created.id, roomIds)
                             }
                         }
@@ -448,25 +448,28 @@ class RoomListPresenter(
         }
         val seenRoomInvites by remember { seenInvitesStore.seenRoomIds() }.collectAsState(emptySet())
         val securityBannerState by rememberSecurityBannerState(securityBannerDismissed)
-        val processedSummaries = remember(roomSummaries, mergedContacts, hiddenRoomIds, allLabels, isSpaceFilterActive, activeLabelFilter) {
+        val roomIdToMerge = remember(mergedContacts) {
+            val map = HashMap<RoomId, MergedContact>()
+            for (mc in mergedContacts) {
+                for (rId in mc.roomIds) {
+                    map[rId] = mc
+                }
+            }
+            map
+        }
+        val processedSummaries = remember(roomSummaries, roomIdToMerge, hiddenRoomIds, allLabels, isSpaceFilterActive) {
             val raw = roomSummaries.dataOrNull().orEmpty()
             val filteredRaw = if (isSpaceFilterActive || hiddenRoomIds.isEmpty()) {
                 raw
             } else {
                 raw.filter { summary -> summary.roomId !in hiddenRoomIds }
             }
-            if (mergedContacts.isEmpty()) {
+            if (roomIdToMerge.isEmpty()) {
                 filteredRaw.map { summary ->
                     val emojis = allLabels.filter { summary.roomId in it.roomIds }.mapNotNull { it.emoji }.toImmutableList()
                     if (emojis.isNotEmpty()) summary.copy(labelEmojis = emojis) else summary
                 }.toImmutableList()
             } else {
-                val roomIdToMerge = HashMap<RoomId, MergedContact>()
-                for (mc in mergedContacts) {
-                    for (rId in mc.roomIds) {
-                        roomIdToMerge[rId] = mc
-                    }
-                }
                 val handledMergeIds = HashSet<String>()
                 val result = ArrayList<RoomListRoomSummary>(filteredRaw.size)
 
@@ -505,7 +508,14 @@ class RoomListPresenter(
         }
         // Filtrar por label activa si hay una seleccionada (paridad con FluffyBeep Flutter)
         val labelFilteredSummaries = if (activeLabelFilter != null) {
-            processedSummaries.filter { s -> s.roomId in activeLabelFilter.roomIds }.toImmutableList()
+            processedSummaries.filter { s ->
+                val mc = roomIdToMerge[s.roomId]
+                if (mc != null) {
+                    mc.roomIds.any { it in activeLabelFilter.roomIds }
+                } else {
+                    s.roomId in activeLabelFilter.roomIds
+                }
+            }.toImmutableList()
         } else {
             processedSummaries
         }
