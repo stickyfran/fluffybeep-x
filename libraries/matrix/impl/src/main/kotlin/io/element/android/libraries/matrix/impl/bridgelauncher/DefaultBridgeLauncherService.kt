@@ -35,7 +35,7 @@ private val WA_FALLBACK_PACKAGES = listOf(
 @ContributesBinding(SessionScope::class)
 @Inject
 class DefaultBridgeLauncherService(
-    @ApplicationContext private val context: Context? = null,
+    @ApplicationContext private val context: Context,
     private val matrixClient: MatrixClient,
 ) : BridgeLauncherService {
 
@@ -137,9 +137,8 @@ class DefaultBridgeLauncherService(
     override suspend fun launchWhatsAppApp(): Boolean = withContext(Dispatchers.IO) {
         wakeScreen()
 
-        val targetContext = context ?: return@withContext false
         val installedPackage = WA_FALLBACK_PACKAGES.firstOrNull { isPackageInstalled(it) } ?: "com.whatsapp"
-        val launchIntent = targetContext.packageManager.getLaunchIntentForPackage(installedPackage)
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(installedPackage)
         if (launchIntent != null) {
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             return@withContext tryLaunchIntent(launchIntent)
@@ -147,7 +146,7 @@ class DefaultBridgeLauncherService(
 
         // Try candidate packages
         for (pkg in WA_FALLBACK_PACKAGES) {
-            val intent = targetContext.packageManager.getLaunchIntentForPackage(pkg)
+            val intent = context.packageManager.getLaunchIntentForPackage(pkg)
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                 if (tryLaunchIntent(intent)) return@withContext true
@@ -164,51 +163,45 @@ class DefaultBridgeLauncherService(
     }
 
     override suspend fun canDrawOverlays(): Boolean = withContext(Dispatchers.IO) {
-        val targetContext = context ?: return@withContext false
-        Settings.canDrawOverlays(targetContext)
+        Settings.canDrawOverlays(context)
     }
 
-    override suspend fun requestOverlayPermission(): Boolean {
-        val ctx = context ?: return false
-        return withContext(Dispatchers.Main) {
-            try {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${ctx.packageName}"),
-                ).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                ctx.startActivity(intent)
-                true
-            } catch (e: Exception) {
-                Timber.e(e, "BridgeLauncher: Failed to launch overlay settings")
-                false
+    override suspend fun requestOverlayPermission(): Boolean = withContext(Dispatchers.Main) {
+        try {
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${context.packageName}"),
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            Timber.e(e, "BridgeLauncher: Failed to launch overlay settings")
+            false
         }
     }
 
     private val prefs by lazy {
-        context?.getSharedPreferences("fluffybeep_bridge_launcher", Context.MODE_PRIVATE)
+        context.getSharedPreferences("fluffybeep_bridge_launcher", Context.MODE_PRIVATE)
     }
 
     override suspend fun isAutoOpenWhatsAppOnCallEnabled(): Boolean {
-        return prefs?.getBoolean("auto_open_wa_on_call", true) ?: true
+        return prefs.getBoolean("auto_open_wa_on_call", true)
     }
 
     override suspend fun setAutoOpenWhatsAppOnCallEnabled(enabled: Boolean) {
-        prefs?.edit()?.putBoolean("auto_open_wa_on_call", enabled)?.apply()
+        prefs.edit().putBoolean("auto_open_wa_on_call", enabled).apply()
     }
 
     private fun isPackageInstalled(pkg: String): Boolean = runCatching {
-        val targetContext = context ?: return false
-        targetContext.packageManager.getPackageInfo(pkg, 0)
+        context.packageManager.getPackageInfo(pkg, 0)
         true
     }.getOrDefault(false)
 
     private fun tryLaunchIntent(intent: Intent): Boolean = runCatching {
-        val targetContext = context ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        targetContext.startActivity(intent)
+        context.startActivity(intent)
         true
     }.getOrElse {
         Timber.w(it, "DefaultBridgeLauncherService: failed to launch intent $intent")
@@ -217,16 +210,19 @@ class DefaultBridgeLauncherService(
 
     private fun wakeScreen() {
         runCatching {
-            val targetContext = context ?: return
-            val pm = targetContext.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
             @Suppress("DEPRECATION")
             val wakeLock = pm.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
                 "fluffybeep:call_wake_lock"
             )
-            wakeLock.acquire(3000)
+            try {
+                wakeLock.acquire(3000L)
+            } catch (e: Exception) {
+                Timber.w(e, "DefaultBridgeLauncherService: failed to acquire wake lock")
+            }
         }.onFailure {
-            Timber.w(it, "DefaultBridgeLauncherService: failed to acquire wake lock")
+            Timber.w(it, "DefaultBridgeLauncherService: error setting up wake lock")
         }
     }
 }
