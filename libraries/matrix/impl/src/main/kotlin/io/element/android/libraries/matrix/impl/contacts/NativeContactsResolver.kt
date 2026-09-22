@@ -90,15 +90,21 @@ class NativeContactsResolver(
                 null
             )
             cursor?.use {
-                if (it.moveToFirst()) {
+                while (it.moveToNext()) {
                     val id = it.getString(0)
                     val name = it.getString(1)
                     val num = it.getString(2)
-                    if (!name.isNullOrBlank()) {
-                        val info = NativeContactInfo(id = id, displayName = name, phone = num)
-                        contactCacheByPhone[cleanPhone] = info
-                        nameCacheById[id] = name
-                        return@withContext info
+                    if (!name.isNullOrBlank() && !num.isNullOrBlank()) {
+                        val cleanNum = num.replace(Regex("""\D"""), "")
+                        val isMatch = cleanNum == cleanPhone ||
+                            (cleanNum.length >= 7 && cleanPhone.endsWith(cleanNum)) ||
+                            (cleanPhone.length >= 7 && cleanNum.endsWith(cleanPhone))
+                        if (isMatch) {
+                            val info = NativeContactInfo(id = id, displayName = name, phone = num)
+                            contactCacheByPhone[cleanPhone] = info
+                            nameCacheById[id] = name
+                            return@withContext info
+                        }
                     }
                 }
             }
