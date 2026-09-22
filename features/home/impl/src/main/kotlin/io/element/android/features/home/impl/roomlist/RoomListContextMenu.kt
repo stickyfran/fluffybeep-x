@@ -143,15 +143,15 @@ private fun RoomListModalBottomSheetContent(
                 )
             ),
         )
-        val (title, icon) = if (contextMenu.isFavorite) {
-            stringResource(id = CommonStrings.action_remove_from_favorites) to CompoundIcons.FavouriteSolid()
+        val (textResId, icon) = if (contextMenu.isFavorite) {
+            CommonStrings.common_favourited to CompoundIcons.FavouriteSolid()
         } else {
-            stringResource(id = CommonStrings.action_favourite) to CompoundIcons.Favourite()
+            CommonStrings.common_favourite to CompoundIcons.Favourite()
         }
         ListItem(
             content = {
                 Text(
-                    text = title,
+                    text = stringResource(id = textResId),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },

@@ -216,7 +216,7 @@ class MessageComposerPresenter(
         }
         var showAttachmentSourcePicker: Boolean by remember { mutableStateOf(false) }
         var showStickerPicker: Boolean by remember { mutableStateOf(false) }
-        val stickerPacks by androidx.compose.runtime.produceState(persistentListOf<io.element.android.libraries.matrix.api.stickers.StickerPack>(), showStickerPicker) {
+        val stickerPacks by androidx.compose.runtime.produceState<kotlinx.collections.immutable.ImmutableList<io.element.android.libraries.matrix.api.stickers.StickerPack>>(persistentListOf(), showStickerPicker) {
             if (showStickerPicker) {
                 value = stickerService.getStickerPacks(room.roomId)
             }

@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.libraries.designsystem.theme.components.ModalBottomSheet
-import io.element.android.libraries.designsystem.theme.components.SuggestionChip
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.matrix.api.media.MediaSource
 import io.element.android.libraries.matrix.api.stickers.StickerItem
@@ -103,18 +102,25 @@ fun StickerPickerBottomSheet(
                     ) {
                         packs.forEachIndexed { index, pack ->
                             val isSelected = index == selectedPackIndex
-                            SuggestionChip(
-                                onClick = { selectedPackIndex = index },
-                                label = {
-                                    Text(
-                                        text = pack.displayName,
-                                        style = if (isSelected) ElementTheme.typography.fontBodySmMedium else ElementTheme.typography.fontBodySmRegular,
-                                        color = if (isSelected) ElementTheme.colors.textActionPrimary else ElementTheme.colors.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        if (isSelected) ElementTheme.colors.bgActionPrimaryRest
+                                        else ElementTheme.colors.bgSubtleSecondary
                                     )
-                                },
-                            )
+                                    .clickable { selectedPackIndex = index }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = pack.displayName,
+                                    style = if (isSelected) ElementTheme.typography.fontBodySmMedium else ElementTheme.typography.fontBodySmRegular,
+                                    color = if (isSelected) ElementTheme.colors.textOnSolidPrimary else ElementTheme.colors.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))

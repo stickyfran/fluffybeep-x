@@ -67,6 +67,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -269,7 +270,7 @@ class RoomListPresenter(
                         val mergedContact = client.contactMergeService.getMergedContactForRoom(event.roomId)
                         val existingMergedIds: Set<RoomId> = mergedContact?.roomIds?.toSet() ?: setOf(event.roomId)
                         // Load current summaries from the room list and exclude already-merged rooms and DMs
-                        val rawSummaries = (contentState as? RoomListContentState.Rooms)?.summaries.orEmpty()
+                        val rawSummaries = roomListDataSource.roomSummariesFlow.firstOrNull().orEmpty()
                         val available = rawSummaries.filter { s ->
                             s.roomId !in existingMergedIds && !s.isDm
                         }.toImmutableList()
@@ -433,6 +434,7 @@ class RoomListPresenter(
         }
         val mergedContacts by client.contactMergeService.mergedContacts.collectAsState(initial = emptyList())
         val hiddenRoomIds by client.labelService.hiddenFromInboxRoomIds.collectAsState(initial = emptySet())
+        val allLabels by client.labelService.labels.collectAsState(initial = emptyList())
         val loadingState by roomListDataSource.loadingState.collectAsState()
         val showEmpty by remember {
             derivedStateOf {
