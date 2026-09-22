@@ -46,10 +46,12 @@ class DefaultStickerService(
         return try {
             val room = client.getJoinedRoom(roomId) ?: return Result.failure(IllegalStateException("Room not found: $roomId"))
             room.use { r ->
-                // Send as message with plain description to the timeline
+                val alt = sticker.body.ifBlank { sticker.key }
+                val html = """<img data-mx-emoticon="" src="${sticker.url}" alt="$alt" title="$alt" />"""
+                // Send as rich message with HTML image tag conforming to MSC2545
                 r.liveTimeline.sendMessage(
-                    body = sticker.body.ifBlank { sticker.key },
-                    htmlBody = null,
+                    body = alt,
+                    htmlBody = html,
                     intentionalMentions = emptyList<IntentionalMention>(),
                 )
             }
