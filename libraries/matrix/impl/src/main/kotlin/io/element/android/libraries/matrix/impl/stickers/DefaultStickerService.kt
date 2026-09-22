@@ -7,10 +7,6 @@
 
 package io.element.android.libraries.matrix.impl.stickers
 
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.SingleIn
-import io.element.android.libraries.di.SessionScope
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.room.IntentionalMention
@@ -22,9 +18,6 @@ import kotlinx.collections.immutable.toImmutableList
 import org.json.JSONObject
 import timber.log.Timber
 
-@SingleIn(SessionScope::class)
-@ContributesBinding(SessionScope::class)
-@Inject
 class DefaultStickerService(
     private val client: MatrixClient,
 ) : StickerService {
