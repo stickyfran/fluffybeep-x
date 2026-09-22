@@ -168,6 +168,7 @@ class DefaultNotificationCreator(
         }
         val builder = if (existingNotification != null) {
             NotificationCompat.Builder(context, existingNotification)
+                .setChannelId(channelId)
                 // Clear existing actions
                 .clearActions()
         } else {

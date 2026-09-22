@@ -22,7 +22,7 @@ class DefaultGroupNotificationThrottlerTest {
         val appPreferencesStore = InMemoryAppPreferencesStore(
             groupNotificationCooldown = GroupNotificationCooldown.OFF
         )
-        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore)
+        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore, this)
         val roomId = RoomId("!room:matrix.org")
 
         val now = 1000000L
@@ -36,7 +36,7 @@ class DefaultGroupNotificationThrottlerTest {
         val appPreferencesStore = InMemoryAppPreferencesStore(
             groupNotificationCooldown = GroupNotificationCooldown.THIRTY_SECONDS
         )
-        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore)
+        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore, this)
         val roomId = RoomId("!room:matrix.org")
 
         val now = 1000000L
@@ -61,7 +61,7 @@ class DefaultGroupNotificationThrottlerTest {
         val appPreferencesStore = InMemoryAppPreferencesStore(
             groupNotificationCooldown = GroupNotificationCooldown.ONE_MINUTE
         )
-        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore)
+        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore, this)
         val room1 = RoomId("!room1:matrix.org")
         val room2 = RoomId("!room2:matrix.org")
 
@@ -76,5 +76,28 @@ class DefaultGroupNotificationThrottlerTest {
 
         // Room 2 silenced 5s later
         assertThat(throttler.shouldSilenceGroupNotification(room2, now + 15000L)).isTrue()
+    }
+
+    @Test
+    fun `when cooldown setting is updated dynamically, throttler reflects the new value`() = runTest {
+        val appPreferencesStore = InMemoryAppPreferencesStore(
+            groupNotificationCooldown = GroupNotificationCooldown.OFF
+        )
+        val throttler = DefaultGroupNotificationThrottler(appPreferencesStore, this)
+        val roomId = RoomId("!room:matrix.org")
+        val now = 1000000L
+
+        // Initially OFF
+        assertThat(throttler.shouldSilenceGroupNotification(roomId, now)).isFalse()
+        assertThat(throttler.shouldSilenceGroupNotification(roomId, now + 1000L)).isFalse()
+
+        // Change to 30s
+        appPreferencesStore.setGroupNotificationCooldown(GroupNotificationCooldown.THIRTY_SECONDS)
+        testScheduler.advanceUntilIdle()
+
+        // First message with 30s cooldown triggers window
+        assertThat(throttler.shouldSilenceGroupNotification(roomId, now + 2000L)).isFalse()
+        // Rapid message inside window is silenced
+        assertThat(throttler.shouldSilenceGroupNotification(roomId, now + 5000L)).isTrue()
     }
 }
