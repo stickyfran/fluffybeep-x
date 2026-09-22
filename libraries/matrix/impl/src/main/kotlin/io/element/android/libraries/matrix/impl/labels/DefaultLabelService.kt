@@ -7,12 +7,7 @@
 
 package io.element.android.libraries.matrix.impl.labels
 
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.SingleIn
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
-import io.element.android.libraries.di.SessionScope
-import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.labels.LabelService
@@ -41,13 +36,10 @@ private data class LabelDto(
     val createdAt: Long = 0L,
 )
 
-@SingleIn(SessionScope::class)
-@ContributesBinding(SessionScope::class)
-@Inject
 class DefaultLabelService(
     private val matrixClient: MatrixClient,
     private val dispatchers: CoroutineDispatchers,
-    @SessionCoroutineScope private val sessionCoroutineScope: CoroutineScope,
+    private val sessionCoroutineScope: CoroutineScope,
 ) : LabelService {
 
     private val _labels = MutableStateFlow<List<RoomLabel>>(emptyList())

@@ -53,6 +53,16 @@ jobs:
       - name: Assemble debug APK (FDroid flavor - arm64-v8a only)
         run: ./gradlew :app:assembleFDroidDebug -PtargetAbi=arm64-v8a $CI_GRADLE_ARG_PROPERTIES
 
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gradle-build-reports
+          path: |
+            **/build/reports/
+            **/build/logs/
+          retention-days: 7
+
       - name: Upload debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

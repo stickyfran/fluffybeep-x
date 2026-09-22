@@ -12,11 +12,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.SingleIn
-import io.element.android.libraries.di.SessionScope
-import io.element.android.libraries.di.annotations.ApplicationContext
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.bridgelauncher.BridgeLauncherService
 import io.element.android.libraries.matrix.api.core.RoomId
@@ -31,11 +26,8 @@ private val WA_FALLBACK_PACKAGES = listOf(
     "com.yowhatsapp",
 )
 
-@SingleIn(SessionScope::class)
-@ContributesBinding(SessionScope::class)
-@Inject
 class DefaultBridgeLauncherService(
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     private val matrixClient: MatrixClient,
 ) : BridgeLauncherService {
 
