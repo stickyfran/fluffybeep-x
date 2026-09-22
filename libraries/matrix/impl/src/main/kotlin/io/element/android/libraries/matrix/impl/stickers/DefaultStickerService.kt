@@ -13,6 +13,7 @@ import dev.zacsweers.metro.SingleIn
 import io.element.android.libraries.di.SessionScope
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.RoomId
+import io.element.android.libraries.matrix.api.room.IntentionalMention
 import io.element.android.libraries.matrix.api.stickers.StickerItem
 import io.element.android.libraries.matrix.api.stickers.StickerPack
 import io.element.android.libraries.matrix.api.stickers.StickerService
@@ -50,16 +51,15 @@ class DefaultStickerService(
 
     override suspend fun sendSticker(roomId: RoomId, sticker: StickerItem): Result<Unit> {
         return try {
-            val room = client.getRoom(roomId) ?: return Result.failure(IllegalStateException("Room not found: $roomId"))
+            val room = client.getJoinedRoom(roomId) ?: return Result.failure(IllegalStateException("Room not found: $roomId"))
             room.use { r ->
                 // Send as message with plain description to the timeline
                 r.liveTimeline.sendMessage(
                     body = sticker.body.ifBlank { sticker.key },
                     htmlBody = null,
-                    intentionalMentions = emptyList(),
+                    intentionalMentions = emptyList<IntentionalMention>(),
                 )
             }
-            Result.success(Unit)
         } catch (e: Exception) {
             Timber.w(e, "DefaultStickerService: failed to send sticker to room $roomId")
             Result.failure(e)
