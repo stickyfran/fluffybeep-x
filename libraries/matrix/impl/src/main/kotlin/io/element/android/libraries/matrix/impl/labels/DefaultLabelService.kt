@@ -56,6 +56,8 @@ class DefaultLabelService(
     private val _hiddenFromInboxRoomIds = MutableStateFlow<Set<RoomId>>(emptySet())
     override val hiddenFromInboxRoomIds: StateFlow<Set<RoomId>> = _hiddenFromInboxRoomIds.asStateFlow()
 
+    private var cachedHiddenNetworksDto: LabelDto? = null
+
     init {
         sessionCoroutineScope.launch(dispatchers.io) {
             loadLabels()
@@ -68,6 +70,7 @@ class DefaultLabelService(
 
         try {
             val map = json.decodeFromString<Map<String, LabelDto>>(rawJson)
+            cachedHiddenNetworksDto = map["_hidden_networks"]
             val parsed = map.entries
                 .filter { it.key != "_hidden_networks" }
                 .map { (id, dto) ->
@@ -92,16 +95,10 @@ class DefaultLabelService(
 
     private suspend fun saveLabels(updated: List<RoomLabel>): Result<Unit> = withContext(dispatchers.io) {
         runCatching {
-            val rawJson = matrixClient.getAccountData(ACCOUNT_DATA_KEY_LABELS).getOrNull()
-            val existingMap: MutableMap<String, LabelDto> = if (!rawJson.isNullOrBlank()) {
-                runCatching { json.decodeFromString<Map<String, LabelDto>>(rawJson).toMutableMap() }.getOrDefault(mutableMapOf())
-            } else {
-                mutableMapOf()
-            }
+            val existingMap = mutableMapOf<String, LabelDto>()
 
-            // Preserve special keys like _hidden_networks
-            val hiddenNetworksDto = existingMap["_hidden_networks"]
-            existingMap.clear()
+            // Preserve special keys like _hidden_networks from cache
+            val hiddenNetworksDto = cachedHiddenNetworksDto
             if (hiddenNetworksDto != null) {
                 existingMap["_hidden_networks"] = hiddenNetworksDto
             }
