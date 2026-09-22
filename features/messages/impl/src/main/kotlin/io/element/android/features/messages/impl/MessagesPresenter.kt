@@ -245,14 +245,22 @@ class MessagesPresenter(
             }
         }
 
+        var lastHandledCallEventId by rememberSaveable {
+            mutableStateOf<String?>(null)
+        }
+
         LaunchedEffect(timelineState.timelineItems) {
             val latestEvent = timelineState.timelineItems.filterIsInstance<TimelineItem.Event>().firstOrNull()
             if (latestEvent != null) {
-                val body = (latestEvent.content as? TimelineItemTextBasedContent)?.body
-                if (body?.contains("Incoming call. Use the WhatsApp app to answer.") == true) {
-                    val age = System.currentTimeMillis() - latestEvent.sentTimeMillis
-                    if (age in 0..45_000L && client.bridgeLauncherService.isAutoOpenWhatsAppOnCallEnabled()) {
-                        client.bridgeLauncherService.launchWhatsAppApp()
+                val eventIdStr = latestEvent.eventId?.value ?: latestEvent.identifier().value
+                if (eventIdStr != lastHandledCallEventId) {
+                    val body = (latestEvent.content as? TimelineItemTextBasedContent)?.body
+                    if (body?.contains("Incoming call. Use the WhatsApp app to answer.") == true) {
+                        val age = System.currentTimeMillis() - latestEvent.sentTimeMillis
+                        if (age in 0..45_000L && client.bridgeLauncherService.isAutoOpenWhatsAppOnCallEnabled()) {
+                            lastHandledCallEventId = eventIdStr
+                            client.bridgeLauncherService.launchWhatsAppApp()
+                        }
                     }
                 }
             }
