@@ -64,6 +64,18 @@ jobs:
           tail -n 120 gradle-build.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Publish failure log to release
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tail -n 150 gradle-build.log > failure-summary.txt
+          gh release delete failure-log --yes --cleanup-tag 2>/dev/null || true
+          gh release create failure-log gradle-build.log \
+            --title "Build Failure Log" \
+            --notes-file failure-summary.txt \
+            --prerelease
+
       - name: Upload build reports on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
