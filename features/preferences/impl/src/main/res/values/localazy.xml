@@ -78,6 +78,14 @@ If you proceed, some of your settings may change."</string>
   <string name="screen_notification_settings_enable_notifications">"Enable notifications on this device"</string>
   <string name="screen_notification_settings_failed_fixing_configuration">"The configuration has not been corrected, please try again."</string>
   <string name="screen_notification_settings_group_chats">"Group chats"</string>
+  <string name="screen_notification_settings_group_cooldown_label">"Group notification cooldown"</string>
+  <string name="screen_notification_settings_group_cooldown_description">"Avoid continuous alerts when multiple messages arrive quickly in group chats"</string>
+  <string name="screen_notification_settings_group_cooldown_off">"Off"</string>
+  <string name="screen_notification_settings_group_cooldown_30s">"30 seconds"</string>
+  <string name="screen_notification_settings_group_cooldown_1m">"1 minute"</string>
+  <string name="screen_notification_settings_group_cooldown_30m">"30 minutes"</string>
+  <string name="screen_notification_settings_group_cooldown_1h">"1 hour"</string>
+  <string name="screen_notification_settings_group_cooldown_2h">"2 hours"</string>
   <string name="screen_notification_settings_invite_for_me_label">"Invitations"</string>
   <string name="screen_notification_settings_mentions_only_disclaimer">"Your account provider does not support this option in encrypted chats, you may not get notified in some chats."</string>
   <string name="screen_notification_settings_mentions_section_title">"Mentions"</string>

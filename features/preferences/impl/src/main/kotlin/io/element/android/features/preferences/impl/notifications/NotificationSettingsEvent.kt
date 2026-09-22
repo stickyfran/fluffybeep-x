@@ -34,4 +34,7 @@ sealed interface NotificationSettingsEvent {
     data object DismissCallRingtoneDialog : NotificationSettingsEvent
     data class SelectCallRingtonePreset(val sound: NotificationSound) : NotificationSettingsEvent
     data object LaunchCallRingtonePicker : NotificationSettingsEvent
+    data object ShowGroupCooldownDialog : NotificationSettingsEvent
+    data object DismissGroupCooldownDialog : NotificationSettingsEvent
+    data class SetGroupNotificationCooldown(val cooldown: io.element.android.libraries.preferences.api.store.GroupNotificationCooldown) : NotificationSettingsEvent
 }

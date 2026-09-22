@@ -154,7 +154,7 @@ class DefaultNotificationCreator(
         } else {
             notificationChannels.getChannelIdForMessage(
                 sessionId = roomInfo.sessionId,
-                noisy = roomInfo.shouldBing,
+                noisy = roomInfo.shouldBing && !roomInfo.isSilencedByCooldown,
             )
         }
         // A category allows groups of notifications to be ranked and filtered – per user or system settings.
@@ -201,7 +201,7 @@ class DefaultNotificationCreator(
         return builder
             .setCategory(category)
             .setNumber(events.size)
-            .setOnlyAlertOnce(roomInfo.isUpdated || newEvents.isEmpty())
+            .setOnlyAlertOnce(roomInfo.isUpdated || newEvents.isEmpty() || roomInfo.isSilencedByCooldown)
             .setWhen(lastMessageTimestamp)
             // MESSAGING_STYLE sets title and content for API 16 and above devices.
             .setStyle(messagingStyle)

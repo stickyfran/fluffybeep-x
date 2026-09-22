@@ -12,6 +12,7 @@ import io.element.android.libraries.matrix.api.media.MediaPreviewValue
 import io.element.android.libraries.matrix.api.tracing.LogLevel
 import io.element.android.libraries.matrix.api.tracing.TraceLogPack
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
+import io.element.android.libraries.preferences.api.store.GroupNotificationCooldown
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.preferences.api.store.NotificationSoundChannelConfig
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +36,7 @@ class InMemoryAppPreferencesStore(
     callRingtone: NotificationSound = NotificationSound.SystemDefault,
     callRingtoneChannelVersion: Int = 0,
     callRingtoneDisplayName: String? = null,
+    groupNotificationCooldown: GroupNotificationCooldown = GroupNotificationCooldown.OFF,
 ) : AppPreferencesStore {
     private val isDeveloperModeEnabled = MutableStateFlow(isDeveloperModeEnabled)
     private val customElementCallBaseUrl = MutableStateFlow(customElementCallBaseUrl)
@@ -51,6 +53,7 @@ class InMemoryAppPreferencesStore(
     private val callRingtone = MutableStateFlow(callRingtone)
     private val callRingtoneChannelVersion = MutableStateFlow(callRingtoneChannelVersion)
     private val callRingtoneDisplayName = MutableStateFlow(callRingtoneDisplayName)
+    private val groupNotificationCooldown = MutableStateFlow(groupNotificationCooldown)
 
     override suspend fun setDeveloperModeEnabled(enabled: Boolean) {
         isDeveloperModeEnabled.value = enabled
@@ -169,6 +172,14 @@ class InMemoryAppPreferencesStore(
             callRingtoneVersion = callRingtoneChannelVersion.value,
             callRingtoneDisplayName = callRingtoneDisplayName.value,
         )
+    }
+
+    override fun getGroupNotificationCooldownFlow(): Flow<GroupNotificationCooldown> {
+        return groupNotificationCooldown
+    }
+
+    override suspend fun setGroupNotificationCooldown(cooldown: GroupNotificationCooldown) {
+        groupNotificationCooldown.value = cooldown
     }
 
     override suspend fun reset() {

@@ -26,4 +26,5 @@ data class RoomEventGroupInfo(
     val customSound: String? = null,
     val hasSmartReplyError: Boolean = false,
     val isUpdated: Boolean = false,
+    val isSilencedByCooldown: Boolean = false,
 )

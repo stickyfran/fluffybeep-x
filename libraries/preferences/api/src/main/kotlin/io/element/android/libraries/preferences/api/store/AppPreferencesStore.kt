@@ -140,6 +140,14 @@ interface AppPreferencesStore {
     /** Single-snapshot read of all sound prefs; used at boot to seed channels without N reads. */
     suspend fun getNotificationSoundChannelConfig(): NotificationSoundChannelConfig
 
+    /** The cooldown period for group notification sounds; defaults to [GroupNotificationCooldown.OFF]. */
+    fun getGroupNotificationCooldownFlow(): Flow<GroupNotificationCooldown>
+
+    /**
+     * @param cooldown the cooldown duration for group notification sounds.
+     */
+    suspend fun setGroupNotificationCooldown(cooldown: GroupNotificationCooldown)
+
     /** Erases every app preference, so they all fall back to their defaults. */
     suspend fun reset()
 }

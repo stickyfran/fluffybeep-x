@@ -165,6 +165,10 @@ class NotificationSettingsPresenter(
         val messageSoundDisplayName = probeSoundDisplayName(effectiveMessageSound, persistedMessageSoundTitle, defaultLabel)
         val callRingtoneDisplayName = probeSoundDisplayName(effectiveCallRingtone, persistedCallRingtoneTitle, defaultLabel)
 
+        val groupNotificationCooldown by remember { appPreferencesStore.getGroupNotificationCooldownFlow() }
+            .collectAsState(initial = io.element.android.libraries.preferences.api.store.GroupNotificationCooldown.OFF)
+        var showGroupCooldownDialog by remember { mutableStateOf(false) }
+
         var messageSoundCopyError by remember { mutableStateOf(false) }
         var callRingtoneCopyError by remember { mutableStateOf(false) }
         var showMessageSoundDialog by remember { mutableStateOf(false) }
@@ -276,6 +280,14 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.DismissCallRingtoneCopyError -> {
                     callRingtoneCopyError = false
                 }
+                NotificationSettingsEvent.ShowGroupCooldownDialog -> showGroupCooldownDialog = true
+                NotificationSettingsEvent.DismissGroupCooldownDialog -> showGroupCooldownDialog = false
+                is NotificationSettingsEvent.SetGroupNotificationCooldown -> {
+                    showGroupCooldownDialog = false
+                    sessionCoroutineScope.launch {
+                        appPreferencesStore.setGroupNotificationCooldown(event.cooldown)
+                    }
+                }
             }
         }
 
@@ -302,6 +314,8 @@ class NotificationSettingsPresenter(
             ),
             showMessageSoundDialog = showMessageSoundDialog,
             showCallRingtoneDialog = showCallRingtoneDialog,
+            groupNotificationCooldown = groupNotificationCooldown,
+            showGroupCooldownDialog = showGroupCooldownDialog,
             pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
             pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
             eventSink = ::handleEvent,

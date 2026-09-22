@@ -28,6 +28,8 @@ data class NotificationSettingsState(
     val callRingtone: SoundChannelUiState,
     val showMessageSoundDialog: Boolean,
     val showCallRingtoneDialog: Boolean,
+    val groupNotificationCooldown: io.element.android.libraries.preferences.api.store.GroupNotificationCooldown,
+    val showGroupCooldownDialog: Boolean,
     /**
      * One-shot trigger for launching the system ringtone picker. Each
      * [NotificationSettingsEvent.LaunchMessageSoundPicker] increments the value;

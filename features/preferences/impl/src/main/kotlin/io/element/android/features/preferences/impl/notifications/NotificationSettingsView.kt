@@ -56,6 +56,7 @@ import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsEvent
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
+import io.element.android.libraries.preferences.api.store.GroupNotificationCooldown
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.ui.strings.CommonStrings
 import kotlinx.collections.immutable.persistentListOf
@@ -182,6 +183,15 @@ private fun NotificationSettingsContentView(
             )
             ListItem(
                 content = {
+                    Text(stringResource(id = R.string.screen_notification_settings_group_cooldown_label))
+                },
+                supportingContent = {
+                    Text(getLabelForGroupCooldown(state.groupNotificationCooldown))
+                },
+                onClick = { state.eventSink(NotificationSettingsEvent.ShowGroupCooldownDialog) }
+            )
+            ListItem(
+                content = {
                     Text(stringResource(id = R.string.screen_notification_settings_direct_chats))
                 },
                 supportingContent = {
@@ -189,6 +199,9 @@ private fun NotificationSettingsContentView(
                 },
                 onClick = onDirectChatsClick
             )
+        }
+        if (state.showGroupCooldownDialog) {
+            GroupCooldownDialog(state)
         }
 
         PreferenceCategory(title = stringResource(id = R.string.screen_notification_settings_mode_mentions)) {
@@ -470,6 +483,56 @@ private fun getTitleForRoomNotificationMode(mode: RoomNotificationMode?) =
         RoomNotificationMode.MUTE -> stringResource(id = CommonStrings.common_mute)
         null -> ""
     }
+
+@Composable
+private fun getLabelForGroupCooldown(cooldown: GroupNotificationCooldown): String =
+    when (cooldown) {
+        GroupNotificationCooldown.OFF -> stringResource(id = R.string.screen_notification_settings_group_cooldown_off)
+        GroupNotificationCooldown.THIRTY_SECONDS -> stringResource(id = R.string.screen_notification_settings_group_cooldown_30s)
+        GroupNotificationCooldown.ONE_MINUTE -> stringResource(id = R.string.screen_notification_settings_group_cooldown_1m)
+        GroupNotificationCooldown.THIRTY_MINUTES -> stringResource(id = R.string.screen_notification_settings_group_cooldown_30m)
+        GroupNotificationCooldown.ONE_HOUR -> stringResource(id = R.string.screen_notification_settings_group_cooldown_1h)
+        GroupNotificationCooldown.TWO_HOURS -> stringResource(id = R.string.screen_notification_settings_group_cooldown_2h)
+    }
+
+@Composable
+private fun GroupCooldownDialog(state: NotificationSettingsState) {
+    val options = persistentListOf(
+        ListOption(title = stringResource(id = R.string.screen_notification_settings_group_cooldown_off)),
+        ListOption(title = stringResource(id = R.string.screen_notification_settings_group_cooldown_30s)),
+        ListOption(title = stringResource(id = R.string.screen_notification_settings_group_cooldown_1m)),
+        ListOption(title = stringResource(id = R.string.screen_notification_settings_group_cooldown_30m)),
+        ListOption(title = stringResource(id = R.string.screen_notification_settings_group_cooldown_1h)),
+        ListOption(title = stringResource(id = R.string.screen_notification_settings_group_cooldown_2h)),
+    )
+    val initialSelection = when (state.groupNotificationCooldown) {
+        GroupNotificationCooldown.OFF -> 0
+        GroupNotificationCooldown.THIRTY_SECONDS -> 1
+        GroupNotificationCooldown.ONE_MINUTE -> 2
+        GroupNotificationCooldown.THIRTY_MINUTES -> 3
+        GroupNotificationCooldown.ONE_HOUR -> 4
+        GroupNotificationCooldown.TWO_HOURS -> 5
+    }
+    SingleSelectionDialog(
+        title = stringResource(id = R.string.screen_notification_settings_group_cooldown_label),
+        subtitle = stringResource(id = R.string.screen_notification_settings_group_cooldown_description),
+        options = options,
+        initialSelection = initialSelection,
+        onSelectOption = { index ->
+            val selected = when (index) {
+                0 -> GroupNotificationCooldown.OFF
+                1 -> GroupNotificationCooldown.THIRTY_SECONDS
+                2 -> GroupNotificationCooldown.ONE_MINUTE
+                3 -> GroupNotificationCooldown.THIRTY_MINUTES
+                4 -> GroupNotificationCooldown.ONE_HOUR
+                5 -> GroupNotificationCooldown.TWO_HOURS
+                else -> GroupNotificationCooldown.OFF
+            }
+            state.eventSink(NotificationSettingsEvent.SetGroupNotificationCooldown(selected))
+        },
+        onDismissRequest = { state.eventSink(NotificationSettingsEvent.DismissGroupCooldownDialog) },
+    )
+}
 
 @Composable
 private fun InvalidNotificationSettingsView(

@@ -21,6 +21,7 @@ import io.element.android.libraries.matrix.api.media.MediaPreviewValue
 import io.element.android.libraries.matrix.api.tracing.LogLevel
 import io.element.android.libraries.matrix.api.tracing.TraceLogPack
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
+import io.element.android.libraries.preferences.api.store.GroupNotificationCooldown
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.preferences.api.store.NotificationSound.Companion.toStored
 import io.element.android.libraries.preferences.api.store.NotificationSoundChannelConfig
@@ -44,6 +45,7 @@ private val messageSoundDisplayNameKey = stringPreferencesKey("notificationMessa
 private val callRingtoneUriKey = stringPreferencesKey("notificationCallRingtoneUri")
 private val callRingtoneChannelVersionKey = intPreferencesKey("notificationCallRingtoneChannelVersion")
 private val callRingtoneDisplayNameKey = stringPreferencesKey("notificationCallRingtoneDisplayName")
+private val groupNotificationCooldownKey = stringPreferencesKey("groupNotificationCooldown")
 
 // URLs never contain a newline, so it is a safe delimiter to persist an ordered list in a single String.
 private const val HOMESERVER_HISTORY_DELIMITER = "\n"
@@ -255,6 +257,18 @@ class DefaultAppPreferencesStore(
             callRingtoneVersion = prefs[callRingtoneChannelVersionKey] ?: 0,
             callRingtoneDisplayName = prefs[callRingtoneDisplayNameKey],
         )
+    }
+
+    override fun getGroupNotificationCooldownFlow(): Flow<GroupNotificationCooldown> {
+        return store.data.map { prefs ->
+            GroupNotificationCooldown.fromString(prefs[groupNotificationCooldownKey])
+        }
+    }
+
+    override suspend fun setGroupNotificationCooldown(cooldown: GroupNotificationCooldown) {
+        store.edit { prefs ->
+            prefs[groupNotificationCooldownKey] = cooldown.name
+        }
     }
 
     override suspend fun reset() {

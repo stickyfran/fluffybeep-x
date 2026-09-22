@@ -1104,6 +1104,31 @@ class NotificationSettingsPresenterTest {
         }
     }
 
+    @Test
+    fun `present - toggle and select group notification cooldown`() = runTest {
+        val appPreferencesStore = InMemoryAppPreferencesStore()
+        val presenter = createNotificationSettingsPresenter(appPreferencesStore = appPreferencesStore)
+        presenter.test {
+            val initialState = consumeItemsUntilPredicate {
+                it.groupNotificationCooldown == io.element.android.libraries.preferences.api.store.GroupNotificationCooldown.OFF
+            }.last()
+            assertThat(initialState.groupNotificationCooldown).isEqualTo(io.element.android.libraries.preferences.api.store.GroupNotificationCooldown.OFF)
+            assertThat(initialState.showGroupCooldownDialog).isFalse()
+
+            initialState.eventSink(NotificationSettingsEvent.ShowGroupCooldownDialog)
+            val dialogState = consumeItemsUntilPredicate { it.showGroupCooldownDialog }.last()
+            assertThat(dialogState.showGroupCooldownDialog).isTrue()
+
+            dialogState.eventSink(NotificationSettingsEvent.SetGroupNotificationCooldown(io.element.android.libraries.preferences.api.store.GroupNotificationCooldown.ONE_HOUR))
+            val updatedState = consumeItemsUntilPredicate {
+                it.groupNotificationCooldown == io.element.android.libraries.preferences.api.store.GroupNotificationCooldown.ONE_HOUR && !it.showGroupCooldownDialog
+            }.last()
+            assertThat(updatedState.groupNotificationCooldown).isEqualTo(io.element.android.libraries.preferences.api.store.GroupNotificationCooldown.ONE_HOUR)
+            assertThat(updatedState.showGroupCooldownDialog).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun TestScope.createNotificationSettingsPresenter(
         notificationSettingsService: FakeNotificationSettingsService = FakeNotificationSettingsService(),
         pushService: PushService = FakePushService(),

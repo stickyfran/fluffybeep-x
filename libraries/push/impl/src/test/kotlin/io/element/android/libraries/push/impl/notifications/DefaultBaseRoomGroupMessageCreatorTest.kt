@@ -233,6 +233,7 @@ class DefaultBaseRoomGroupMessageCreatorTest : RobolectricTest() {
 fun createRoomGroupMessageCreator(
     sdkIntProvider: BuildVersionSdkIntProvider = FakeBuildVersionSdkIntProvider(Build.VERSION_CODES.O),
     enterpriseService: EnterpriseService = FakeEnterpriseService(),
+    groupNotificationThrottler: GroupNotificationThrottler = FakeGroupNotificationThrottler(),
 ): RoomGroupMessageCreator {
     val context = RuntimeEnvironment.getApplication() as Context
     val bitmapLoader = DefaultNotificationBitmapLoader(
@@ -246,6 +247,16 @@ fun createRoomGroupMessageCreator(
             enterpriseService = enterpriseService,
         ),
         bitmapLoader = bitmapLoader,
-        stringProvider = AndroidStringProvider(context.resources)
+        stringProvider = AndroidStringProvider(context.resources),
+        groupNotificationThrottler = groupNotificationThrottler,
     )
+}
+
+class FakeGroupNotificationThrottler(
+    var shouldSilence: Boolean = false,
+) : GroupNotificationThrottler {
+    override suspend fun shouldSilenceGroupNotification(
+        roomId: io.element.android.libraries.matrix.api.core.RoomId,
+        now: Long,
+    ): Boolean = shouldSilence
 }
