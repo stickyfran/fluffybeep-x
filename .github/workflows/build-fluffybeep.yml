@@ -51,7 +51,18 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/fluffybeep' }}
 
       - name: Assemble debug APK (FDroid flavor - arm64-v8a only)
-        run: ./gradlew :app:assembleFDroidDebug -PtargetAbi=arm64-v8a $CI_GRADLE_ARG_PROPERTIES
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleFDroidDebug -PtargetAbi=arm64-v8a $CI_GRADLE_ARG_PROPERTIES 2>&1 | tee gradle-build.log
+
+      - name: Dump build failure to summary
+        if: failure()
+        run: |
+          echo "## Gradle Build Failure Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -C 3 -i "e: " gradle-build.log | head -n 120 >> $GITHUB_STEP_SUMMARY || true
+          tail -n 120 gradle-build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload build reports on failure
         if: failure()
@@ -61,6 +72,7 @@ jobs:
           path: |
             **/build/reports/
             **/build/logs/
+            gradle-build.log
           retention-days: 7
 
       - name: Upload debug APK
